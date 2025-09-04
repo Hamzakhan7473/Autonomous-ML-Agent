@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  autonomous-ml-agent:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL_REGISTRY_PATH=/app/models
+      - META_LEARNING_DB=/app/meta_learning.db
+      - MAX_MEMORY_GB=8
+      - MAX_CPU_CORES=4
+      - GPU_ENABLED=false
+    volumes:
+      - ./models:/app/models
+      - ./output:/app/output
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Optional: Add PostgreSQL for model registry
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=autonomous_ml
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ml_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
