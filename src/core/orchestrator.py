@@ -18,9 +18,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from ..agent_llm.planner import MLPlanner
+from ..core.ingest import DatasetSchema, analyze_data
+from ..core.model_zoo import ModelZoo
 from ..data.ingestion import DataIngestion
 from ..data.meta_features import MetaFeatureExtractor
-from ..data.preprocessing import DataPreprocessor
+from ..data.preprocessing import DataPreprocessor, PreprocessingConfig
 from ..deployment.registry import ModelRegistry
 from ..evaluation.leaderboard import Leaderboard
 from ..evaluation.metrics import ModelEvaluator
@@ -89,7 +92,7 @@ class LLMOrchestrator:
         self.results = []
         self.start_time = None
 
-    async def run_pipeline(self) -> PipelineResult:
+    async def run_pipeline(self) -> PipelineResults:
         """
         Run the complete autonomous ML pipeline orchestrated by LLMs
         """
@@ -315,11 +318,11 @@ class LLMOrchestrator:
 
         return insights
 
-    def _create_final_result(self, insights: str) -> PipelineResult:
+    def _create_final_result(self, insights: str) -> PipelineResults:
         """Create final pipeline result"""
         best_model = self.leaderboard.get_best_model()
 
-        return PipelineResult(
+        return PipelineResults(
             best_model=best_model,
             leaderboard=self.leaderboard.get_leaderboard(),
             preprocessing_pipeline=self.preprocessor.get_pipeline(),
@@ -329,7 +332,7 @@ class LLMOrchestrator:
             total_iterations=len(self.results),
         )
 
-    async def _save_to_registry(self, result: PipelineResult):
+    async def _save_to_registry(self, result: PipelineResults):
         """Save results to model registry"""
         logger.info("Step 9: Saving to model registry")
 
@@ -648,6 +651,9 @@ class AutonomousMLAgent:
         """Train and optimize models according to the execution plan."""
         model_results = []
         time_per_model = self.config.time_budget // len(execution_plan.models_to_try)
+
+        # Initialize model zoo
+        model_zoo = ModelZoo()
 
         for i, model_name in enumerate(execution_plan.models_to_try):
             logger.info(
