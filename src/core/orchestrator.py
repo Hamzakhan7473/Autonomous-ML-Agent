@@ -37,29 +37,28 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PipelineConfig:
-    """Configuration for the ML pipeline"""
-    dataset_path: str
-    target_column: str
-    optimization_metric: str = "accuracy"
+    """Configuration for the ML pipeline."""
     time_budget: int = 3600  # seconds
-    max_models: int = 10
-    cross_validation_folds: int = 5
+    optimization_metric: str = 'auto'
     random_state: int = 42
-    enable_ensemble: bool = True
-    enable_interpretability: bool = True
-    enable_meta_learning: bool = True
+    output_dir: str = './results'
+    save_models: bool = True
+    save_results: bool = True
+    verbose: bool = False
 
 
 @dataclass
-class PipelineResult:
-    """Results from the ML pipeline"""
+class PipelineResults:
+    """Results from the ML pipeline execution."""
     best_model: Any
-    leaderboard: pd.DataFrame
-    preprocessing_pipeline: Any
-    feature_importance: Dict[str, float]
+    best_score: float
+    best_params: Dict[str, Any]
+    all_results: List[Dict[str, Any]]
+    preprocessing_config: Any
+    execution_plan: Any
+    execution_time: float
+    data_summary: Dict[str, Any]
     model_insights: str
-    training_time: float
-    total_iterations: int
 
 
 class LLMOrchestrator:
@@ -479,26 +478,299 @@ class LLMOrchestrator:
 
 
 class AutonomousMLAgent:
-    """
-    High-level interface for the autonomous ML agent
-    """
+    """Main orchestrator for autonomous machine learning."""
     
-    def __init__(self, dataset_path: str, target_column: str, **kwargs):
-        self.config = PipelineConfig(dataset_path=dataset_path, target_column=target_column, **kwargs)
-        self.orchestrator = LLMOrchestrator(self.config)
+    def __init__(self, config: Optional[PipelineConfig] = None, llm_client: Optional[LLMClient] = None):
+        """Initialize the autonomous ML agent."""
+        self.config = config or PipelineConfig()
+        self.llm_client = llm_client or LLMClient()
+        self.planner = MLPlanner(self.llm_client)
+        
+        # Set random seed
+        np.random.seed(self.config.random_state)
+        
+        # Initialize components
+        self.preprocessor = None
+        self.evaluator = ModelEvaluator()
+        
+        # Results storage
+        self.results = None
+        self.execution_history = []
     
-    async def run(self) -> PipelineResult:
-        """Run the complete autonomous ML pipeline"""
-        return await self.orchestrator.run_pipeline()
+    def run(self, dataset_path: str, target_column: str, 
+            config: Optional[PipelineConfig] = None) -> PipelineResults:
+        """Run the complete autonomous ML pipeline."""
+        
+        if config:
+            self.config = config
+        
+        start_time = time.time()
+        
+        try:
+            logger.info(f"Starting autonomous ML pipeline for {dataset_path}")
+            
+            # Step 1: Data Analysis
+            logger.info("Step 1: Analyzing dataset...")
+            df, schema, summary = self._analyze_data(dataset_path, target_column)
+            
+            # Step 2: LLM Planning
+            logger.info("Step 2: Creating execution plan...")
+            execution_plan = self._create_execution_plan(schema, summary)
+            
+            # Step 3: Data Preprocessing
+            logger.info("Step 3: Preprocessing data...")
+            X_processed, preprocessor = self._preprocess_data(df, target_column, execution_plan)
+            
+            # Step 4: Model Training and Optimization
+            logger.info("Step 4: Training and optimizing models...")
+            model_results = self._train_models(X_processed, df[target_column], execution_plan)
+            
+            # Step 5: Model Evaluation
+            logger.info("Step 5: Evaluating models...")
+            evaluation_results = self._evaluate_models(model_results, X_processed, df[target_column])
+            
+            # Step 6: Generate Insights
+            logger.info("Step 6: Generating insights...")
+            insights = self._generate_insights(evaluation_results, execution_plan)
+            
+            # Step 7: Save Results
+            if self.config.save_results:
+                logger.info("Step 7: Saving results...")
+                self._save_results(evaluation_results, execution_plan, schema, summary)
+            
+            execution_time = time.time() - start_time
+            
+            # Create results object
+            self.results = PipelineResults(
+                best_model=evaluation_results['best_model'],
+                best_score=evaluation_results['best_score'],
+                best_params=evaluation_results['best_params'],
+                all_results=evaluation_results['all_results'],
+                preprocessing_config=preprocessor.config,
+                execution_plan=execution_plan,
+                execution_time=execution_time,
+                data_summary=summary,
+                model_insights=insights
+            )
+            
+            logger.info(f"Pipeline completed successfully in {execution_time:.2f} seconds")
+            
+            return self.results
+            
+        except Exception as e:
+            logger.error(f"Pipeline execution failed: {e}")
+            raise
     
-    def run_sync(self) -> PipelineResult:
-        """Synchronous version of run()"""
-        return asyncio.run(self.run())
+    def _analyze_data(self, dataset_path: str, target_column: str):
+        """Analyze the dataset."""
+        return analyze_data(dataset_path, target_column)
     
-    def get_leaderboard(self) -> pd.DataFrame:
-        """Get the current leaderboard"""
-        return self.orchestrator.leaderboard.get_leaderboard()
+    def _create_execution_plan(self, schema: DatasetSchema, summary: Dict[str, Any]):
+        """Create execution plan using LLM."""
+        prior_runs = self._load_prior_runs()
+        return self.planner.create_plan(schema, summary, prior_runs)
     
-    def get_best_model(self):
-        """Get the best performing model"""
-        return self.orchestrator.leaderboard.get_best_model()
+    def _preprocess_data(self, df: pd.DataFrame, target_column: str, execution_plan):
+        """Preprocess the data according to the execution plan."""
+        preprocess_config = self._create_preprocessing_config(execution_plan)
+        self.preprocessor = DataPreprocessor(preprocess_config)
+        
+        X = df.drop(columns=[target_column])
+        y = df[target_column]
+        X_processed = self.preprocessor.fit_transform(X, y)
+        
+        return X_processed, self.preprocessor
+    
+    def _create_preprocessing_config(self, execution_plan):
+        """Create preprocessing configuration from execution plan."""
+        config = PreprocessingConfig()
+        
+        for step in execution_plan.preprocessing_steps:
+            step_name = step['step']
+            method = step['method']
+            
+            if step_name == 'missing_value_imputation':
+                config.imputation_strategy = method
+            elif step_name == 'categorical_encoding':
+                config.categorical_encoding = method
+            elif step_name == 'scaling':
+                config.scaling = method
+            elif step_name == 'feature_selection':
+                config.feature_selection = step.get('enabled', True)
+        
+        return config
+    
+    def _train_models(self, X: pd.DataFrame, y: pd.Series, execution_plan):
+        """Train and optimize models according to the execution plan."""
+        model_results = []
+        time_per_model = self.config.time_budget // len(execution_plan.models_to_try)
+        
+        for i, model_name in enumerate(execution_plan.models_to_try):
+            logger.info(f"Training model {i+1}/{len(execution_plan.models_to_try)}: {model_name}")
+            
+            try:
+                is_classification = execution_plan.models_to_try[0] in model_zoo.list_models(is_classification=True)
+                model = model_zoo.get_model(model_name, is_classification)
+                
+                strategy = execution_plan.hyperparameter_strategies.get(model_name, 'random')
+                
+                optimizer = HyperparameterOptimizer(
+                    model=model,
+                    method=strategy,
+                    n_trials=50,
+                    timeout=time_per_model,
+                    cv_folds=5
+                )
+                
+                best_model, best_score, best_params = optimizer.optimize(X, y)
+                
+                model_results.append({
+                    'model_name': model_name,
+                    'model': best_model,
+                    'score': best_score,
+                    'params': best_params,
+                    'training_time': best_model.training_time
+                })
+                
+            except Exception as e:
+                logger.error(f"Failed to train model {model_name}: {e}")
+                continue
+        
+        return model_results
+    
+    def _evaluate_models(self, model_results: List[Dict[str, Any]], X: pd.DataFrame, y: pd.Series):
+        """Evaluate all trained models."""
+        if not model_results:
+            raise ValueError("No models were successfully trained")
+        
+        evaluation_results = []
+        best_score = -np.inf
+        best_model = None
+        best_params = None
+        best_model_name = None
+        
+        for result in model_results:
+            try:
+                eval_result = self.evaluator.evaluate(result['model'], X, y)
+                eval_result['model_name'] = result['model_name']
+                eval_result['params'] = result['params']
+                eval_result['training_time'] = result['training_time']
+                
+                evaluation_results.append(eval_result)
+                
+                primary_metric = eval_result['primary_metric']
+                cv_results = eval_result['cv_results']
+                
+                if primary_metric in cv_results and cv_results[primary_metric]:
+                    score = cv_results[primary_metric]['mean']
+                    if score > best_score:
+                        best_score = score
+                        best_model = result['model']
+                        best_params = result['params']
+                        best_model_name = result['model_name']
+                
+            except Exception as e:
+                logger.error(f"Failed to evaluate model {result['model_name']}: {e}")
+                continue
+        
+        return {
+            'all_results': evaluation_results,
+            'best_model': best_model,
+            'best_score': best_score,
+            'best_params': best_params,
+            'best_model_name': best_model_name
+        }
+    
+    def _generate_insights(self, evaluation_results: Dict[str, Any], execution_plan):
+        """Generate insights using LLM."""
+        try:
+            return self.planner.explain_results(evaluation_results, execution_plan)
+        except Exception as e:
+            logger.error(f"Failed to generate insights: {e}")
+            return "Insights generation failed due to technical issues."
+    
+    def _save_results(self, evaluation_results: Dict[str, Any], execution_plan, schema: DatasetSchema, summary: Dict[str, Any]):
+        """Save results to files."""
+        output_path = Path(self.config.output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        results_data = {
+            'evaluation_results': evaluation_results,
+            'execution_plan': execution_plan.__dict__,
+            'schema': schema.__dict__,
+            'summary': summary,
+            'config': self.config.__dict__,
+            'timestamp': time.time()
+        }
+        
+        with open(output_path / 'pipeline_results.json', 'w') as f:
+            json.dump(results_data, f, indent=2, default=str)
+        
+        if evaluation_results['all_results']:
+            comparison_df = self.evaluator.compare_models(evaluation_results['all_results'])
+            comparison_df.to_csv(output_path / 'model_comparison.csv', index=False)
+        
+        if self.config.save_models and evaluation_results['best_model']:
+            import joblib
+            joblib.dump(evaluation_results['best_model'], output_path / 'best_model.pkl')
+            joblib.dump(self.preprocessor, output_path / 'preprocessor.pkl')
+        
+        logger.info(f"Results saved to {output_path}")
+    
+    def _load_prior_runs(self):
+        """Load prior run results for meta-learning."""
+        try:
+            results_file = Path(self.config.output_dir) / 'pipeline_results.json'
+            if results_file.exists():
+                with open(results_file, 'r') as f:
+                    prior_data = json.load(f)
+                    return [prior_data]
+        except Exception as e:
+            logger.warning(f"Could not load prior runs: {e}")
+        
+        return []
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Make predictions using the best model."""
+        if self.results is None:
+            raise ValueError("No trained model available. Run the pipeline first.")
+        
+        X_processed = self.preprocessor.transform(X)
+        return self.results.best_model.predict(X_processed)
+    
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """Make probability predictions (for classification)."""
+        if self.results is None:
+            raise ValueError("No trained model available. Run the pipeline first.")
+        
+        if not self.results.best_model.config.is_classification:
+            raise ValueError("Probability predictions only available for classification models")
+        
+        X_processed = self.preprocessor.transform(X)
+        return self.results.best_model.predict_proba(X_processed)
+    
+    def get_feature_importance(self) -> Optional[np.ndarray]:
+        """Get feature importance from the best model."""
+        if self.results is None:
+            raise ValueError("No trained model available. Run the pipeline first.")
+        
+        return self.results.best_model.get_feature_importance()
+    
+    def get_model_summary(self) -> Dict[str, Any]:
+        """Get summary of the best model."""
+        if self.results is None:
+            raise ValueError("No trained model available. Run the pipeline first.")
+        
+        return {
+            'model_name': self.results.best_model.config.name,
+            'best_score': self.results.best_score,
+            'best_params': self.results.best_params,
+            'execution_time': self.results.execution_time,
+            'insights': self.results.model_insights
+        }
+
+
+def run_autonomous_ml(dataset_path: str, target_column: str, config: Optional[PipelineConfig] = None) -> PipelineResults:
+    """Convenience function to run autonomous ML pipeline."""
+    agent = AutonomousMLAgent(config)
+    return agent.run(dataset_path, target_column)
