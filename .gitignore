@@ -160,69 +160,66 @@ cython_debug/
 #  *.iml
 #  *.ipr
 #  *.iws
-#  *.iws
 
-# Project specific
-*.log
-logs/
-output/
-models/
-*.pkl
-*.joblib
-*.h5
-*.onnx
-*.pb
-
-# Environment variables
-.env
-.env.local
-.env.production
-
-# IDE
+# VS Code
 .vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-temp/
-tmp/
 
 # Data files
-*.csv
-*.json
-*.parquet
-*.xlsx
-*.db
-*.sqlite
+data/raw/*
+!data/raw/.gitkeep
+data/artifacts/*
+!data/artifacts/.gitkeep
 
 # Model files
+models/*
+!models/.gitkeep
+
+# Results
+results/
+output/
 *.pkl
 *.joblib
 *.h5
-*.onnx
-*.pb
-models/
-
-# Output files
-output/
-results/
-experiments/
-
-# Cache
-.cache/
-cache/
+*.hdf5
 
 # Meta-learning database
-meta_learning.db
-*.db
+meta/runs.sqlite
+meta/mlflow.db
+
+# Jupyter notebooks
+notebooks/*.ipynb
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # API keys and secrets
+.env.local
+.env.production
 secrets.json
-api_keys.json
+config.json
+
+# Frontend build artifacts
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/node_modules/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
