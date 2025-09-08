@@ -28,7 +28,7 @@ from ..models.algorithms import ModelFactory
 from ..models.hyperopt import HyperparameterOptimizer
 from ..models.ensemble import EnsembleBuilder
 from ..evaluation.metrics import ModelEvaluator
-from ..evaluation.interpretability import ModelInterpreter
+from ..models.interpretability import ModelInterpreter
 from ..evaluation.leaderboard import Leaderboard
 from ..deployment.registry import ModelRegistry
 
