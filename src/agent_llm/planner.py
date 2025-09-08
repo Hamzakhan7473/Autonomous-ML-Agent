@@ -59,10 +59,10 @@ class MLPlanner:
         context = self._prepare_context(schema, summary, prior_runs)
 
         # Generate plan using LLM
-        plan_response = self._generate_plan_with_llm(context)
+        plan_response = self._generate_plan_with_llm(context, schema, summary)
 
         # Parse and validate plan
-        plan = self._parse_plan_response(plan_response, schema)
+        plan = self._parse_plan_response(plan_response, schema, summary)
 
         # Store plan in history
         self.plan_history.append(
@@ -118,7 +118,7 @@ Target Summary:
 
         return context
 
-    def _generate_plan_with_llm(self, context: str) -> str:
+    def _generate_plan_with_llm(self, context: str, schema: DatasetSchema, summary: dict[str, Any]) -> str:
         """Generate ML plan using LLM."""
 
         prompt = f"""
@@ -190,7 +190,7 @@ Respond with only the JSON, no additional text.
             # Fallback to rule-based planning
             return self._fallback_plan(schema, summary)
 
-    def _parse_plan_response(self, response: str, schema: DatasetSchema) -> MLPlan:
+    def _parse_plan_response(self, response: str, schema: DatasetSchema, summary: dict[str, Any]) -> MLPlan:
         """Parse LLM response into MLPlan object."""
 
         try:
@@ -231,6 +231,46 @@ Respond with only the JSON, no additional text.
             logger.error(f"Response was: {response}")
             # Fallback to rule-based planning
             return self._fallback_plan(schema, summary)
+
+    def _parse_plan_response_direct(self, response: str) -> MLPlan:
+        """Parse LLM response into MLPlan object without fallback."""
+        try:
+            # Clean response (remove markdown formatting if present)
+            response = response.strip()
+            if response.startswith("```json"):
+                response = response[7:]
+            if response.endswith("```"):
+                response = response[:-3]
+
+            plan_data = json.loads(response)
+
+            # Validate required fields
+            required_fields = [
+                "preprocessing_steps",
+                "models_to_try",
+                "hyperparameter_strategies",
+                "evaluation_metrics",
+                "reasoning",
+                "confidence",
+            ]
+            for field in required_fields:
+                if field not in plan_data:
+                    raise ValueError(f"Missing required field: {field}")
+
+            return MLPlan(
+                preprocessing_steps=plan_data["preprocessing_steps"],
+                models_to_try=plan_data["models_to_try"],
+                hyperparameter_strategies=plan_data["hyperparameter_strategies"],
+                ensemble_strategy=plan_data.get("ensemble_strategy"),
+                evaluation_metrics=plan_data["evaluation_metrics"],
+                reasoning=plan_data["reasoning"],
+                confidence=plan_data["confidence"],
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to parse LLM response: {e}")
+            logger.error(f"Response was: {response}")
+            raise e  # Re-raise the exception since we don't have fallback data
 
     def _fallback_plan(self, schema: DatasetSchema, summary: dict[str, Any]) -> MLPlan:
         """Create a fallback plan using rule-based logic."""
@@ -368,7 +408,8 @@ Provide a JSON response with the same structure as the original plan, but with r
 
         try:
             response = self.llm_client.generate_response(context)
-            refined_plan = self._parse_plan_response(response, None)
+            # For refinement, we don't have schema/summary, so we'll parse directly
+            refined_plan = self._parse_plan_response_direct(response)
             return refined_plan
         except Exception as e:
             logger.error(f"Plan refinement failed: {e}")
