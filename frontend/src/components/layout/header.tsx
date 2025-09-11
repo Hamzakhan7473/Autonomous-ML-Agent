@@ -21,7 +21,7 @@ export function Header({ onToggleTheme, isDark }: HeaderProps) {
   const [isConnected, setIsConnected] = useState(true)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo and Title */}
         <div className="flex items-center space-x-3">
@@ -37,7 +37,7 @@ export function Header({ onToggleTheme, isDark }: HeaderProps) {
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Autonomous ML Agent
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
               AI-Powered Machine Learning Pipeline
             </p>
           </div>
@@ -48,7 +48,7 @@ export function Header({ onToggleTheme, isDark }: HeaderProps) {
           {/* Connection Status */}
           <div className="flex items-center space-x-2">
             <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-slate-600 dark:text-slate-400">
               {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>

@@ -99,18 +99,18 @@ export function DataUpload({ onFileUpload, uploadedFile, onRemoveFile }: DataUpl
               }}
               transition={{ duration: 0.2 }}
             >
-              <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-slate-600 dark:text-slate-400" />
             </motion.div>
             
             <h3 className="text-lg font-semibold mb-2">
               {isUploading ? "Uploading..." : "Drop your CSV file here"}
             </h3>
             
-            <p className="text-muted-foreground mb-4">
+            <p className="text-slate-600 dark:text-slate-400 mb-4">
               or click to browse files
             </p>
             
-            <div className="flex items-center justify-center space-x-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center space-x-4 text-sm text-slate-600 dark:text-slate-400">
               <div className="flex items-center space-x-1">
                 <DocumentIcon className="h-4 w-4" />
                 <span>CSV format</span>
@@ -151,12 +151,12 @@ export function DataUpload({ onFileUpload, uploadedFile, onRemoveFile }: DataUpl
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">File Type</p>
+              <div className="text-center p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <p className="text-sm text-slate-600 dark:text-slate-400">File Type</p>
                 <Badge variant="secondary">CSV</Badge>
               </div>
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Status</p>
+              <div className="text-center p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <p className="text-sm text-slate-600 dark:text-slate-400">Status</p>
                 <Badge variant="success">Ready</Badge>
               </div>
             </div>

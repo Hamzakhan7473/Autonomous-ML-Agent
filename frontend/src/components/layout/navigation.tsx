@@ -29,7 +29,7 @@ export function Navigation({ isDark, onToggleTheme, onNavigate, currentPage }: N
   ]
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 w-full border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -56,7 +56,7 @@ export function Navigation({ isDark, onToggleTheme, onNavigate, currentPage }: N
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 className={`text-sm font-medium transition-colors hover:text-primary ${
-                  currentPage === item.id ? 'text-primary' : 'text-muted-foreground'
+                  currentPage === item.id ? 'text-primary' : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
                 {item.label}
@@ -143,8 +143,8 @@ export function Navigation({ isDark, onToggleTheme, onNavigate, currentPage }: N
                 }}
                 className={`block w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   currentPage === item.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-primary hover:bg-accent'
+                    ? 'bg-primary text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-primary hover:bg-accent'
                 }`}
               >
                 {item.label}

@@ -26,11 +26,11 @@ const steps = [
 
 export function MobileStepIndicator({ currentStep, onStepClick }: MobileStepIndicatorProps) {
   return (
-    <div className="lg:hidden bg-background border-b">
+    <div className="lg:hidden bg-white dark:bg-gray-900 border-b">
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-muted-foreground">Pipeline Progress</h3>
-          <span className="text-xs text-muted-foreground">
+          <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400">Pipeline Progress</h3>
+          <span className="text-xs text-slate-600 dark:text-slate-400">
             {currentStep + 1} of {steps.length}
           </span>
         </div>
@@ -47,7 +47,7 @@ export function MobileStepIndicator({ currentStep, onStepClick }: MobileStepIndi
                 onClick={() => onStepClick(step.id)}
                 className={cn(
                   "flex flex-col items-center space-y-1 p-2 rounded-lg transition-all",
-                  isActive ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  isActive ? "bg-primary text-white" : "hover:bg-accent"
                 )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -58,7 +58,7 @@ export function MobileStepIndicator({ currentStep, onStepClick }: MobileStepIndi
                   ) : (
                     <Icon className={cn(
                       "h-5 w-5",
-                      isActive ? "text-primary-foreground" : "text-muted-foreground"
+                      isActive ? "text-white" : "text-slate-600 dark:text-slate-400"
                     )} />
                   )}
                   
@@ -73,7 +73,7 @@ export function MobileStepIndicator({ currentStep, onStepClick }: MobileStepIndi
                 
                 <span className={cn(
                   "text-xs font-medium",
-                  isActive ? "text-primary-foreground" : "text-muted-foreground"
+                  isActive ? "text-white" : "text-slate-600 dark:text-slate-400"
                 )}>
                   {step.name}
                 </span>

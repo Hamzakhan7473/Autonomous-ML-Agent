@@ -1,285 +1,370 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
-  PlayIcon,
-  PauseIcon,
+  PlayIcon, 
+  PauseIcon, 
   StopIcon,
+  ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ClockIcon,
-  CpuChipIcon,
-  ChartBarIcon,
-  SparklesIcon
-} from "@heroicons/react/24/outline"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+  InformationCircleIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
+import { usePipelineExecution, useTaskMonitor } from '@/lib/hooks';
+import { PipelineConfig, PipelineTask } from '@/lib/types';
+import { formatDuration } from '@/lib/api';
 
 interface PipelineExecutionProps {
-  onStartPipeline: () => void
-  onStopPipeline: () => void
-  isRunning: boolean
-  progress: number
-  currentStep: string
-  modelsTrained: number
-  totalModels: number
-  elapsedTime: number
-  estimatedTimeRemaining: number
+  onExecutionComplete?: (taskId: string) => void;
+  className?: string;
 }
 
-interface PipelineStep {
-  id: string
-  name: string
-  status: 'pending' | 'running' | 'completed' | 'error'
-  icon: any
-  description: string
-}
+const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({ 
+  onExecutionComplete, 
+  className = '' 
+}) => {
+  const [config, setConfig] = useState<PipelineConfig | null>(null);
+  const [datasetPath, setDatasetPath] = useState<string>('');
+  const [targetColumn, setTargetColumn] = useState<string>('');
+  const [isStarted, setIsStarted] = useState(false);
+  
+  const { executing, taskId, error, executePipeline, reset } = usePipelineExecution();
+  const { status, loading: monitoringLoading } = useTaskMonitor(taskId);
 
-const pipelineSteps: PipelineStep[] = [
-  {
-    id: 'data-ingestion',
-    name: 'Data Ingestion',
-    status: 'pending',
-    icon: ChartBarIcon,
-    description: 'Loading and analyzing dataset'
-  },
-  {
-    id: 'preprocessing',
-    name: 'Data Preprocessing',
-    status: 'pending',
-    icon: CpuChipIcon,
-    description: 'Cleaning and feature engineering'
-  },
-  {
-    id: 'model-selection',
-    name: 'Model Selection',
-    status: 'pending',
-    icon: SparklesIcon,
-    description: 'AI-guided algorithm selection'
-  },
-  {
-    id: 'hyperparameter-optimization',
-    name: 'Hyperparameter Optimization',
-    status: 'pending',
-    icon: CpuChipIcon,
-    description: 'Optimizing model parameters'
-  },
-  {
-    id: 'model-training',
-    name: 'Model Training',
-    status: 'pending',
-    icon: ChartBarIcon,
-    description: 'Training multiple models'
-  },
-  {
-    id: 'ensemble-building',
-    name: 'Ensemble Building',
-    status: 'pending',
-    icon: SparklesIcon,
-    description: 'Creating ensemble models'
-  },
-  {
-    id: 'interpretation',
-    name: 'Model Interpretation',
-    status: 'pending',
-    icon: ChartBarIcon,
-    description: 'Generating insights and explanations'
-  }
-]
-
-export function PipelineExecution({
-  onStartPipeline,
-  onStopPipeline,
-  isRunning,
-  progress,
-  currentStep,
-  modelsTrained,
-  totalModels,
-  elapsedTime,
-  estimatedTimeRemaining,
-}: PipelineExecutionProps) {
-  const [steps, setSteps] = useState<PipelineStep[]>(pipelineSteps)
+  // Load configuration from localStorage or use default
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('ml-pipeline-config');
+    const savedDataset = localStorage.getItem('ml-dataset-path');
+    const savedTarget = localStorage.getItem('ml-target-column');
+    
+    if (savedConfig) {
+      setConfig(JSON.parse(savedConfig));
+    }
+    if (savedDataset) {
+      setDatasetPath(savedDataset);
+    }
+    if (savedTarget) {
+      setTargetColumn(savedTarget);
+    }
+  }, []);
 
   useEffect(() => {
-    if (isRunning) {
-      // Simulate step progression
-      const interval = setInterval(() => {
-        setSteps(prevSteps => {
-          const currentIndex = prevSteps.findIndex(step => step.status === 'running')
-          if (currentIndex >= 0) {
-            const newSteps = [...prevSteps]
-            newSteps[currentIndex] = { ...newSteps[currentIndex], status: 'completed' }
-            
-            // Start next step
-            if (currentIndex + 1 < newSteps.length) {
-              newSteps[currentIndex + 1] = { ...newSteps[currentIndex + 1], status: 'running' }
-            }
-            
-            return newSteps
-          }
-          return prevSteps
-        })
-      }, 2000)
-
-      return () => clearInterval(interval)
+    if (taskId && !executing) {
+      setIsStarted(true);
     }
-  }, [isRunning])
+  }, [taskId, executing]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+  useEffect(() => {
+    if (status?.status === 'completed' && onExecutionComplete) {
+      onExecutionComplete(taskId || '');
+    }
+  }, [status?.status, taskId, onExecutionComplete]);
+
+  const handleStartExecution = async () => {
+    if (!config || !datasetPath || !targetColumn) {
+      alert('Please configure the pipeline and upload a dataset first.');
+      return;
+    }
+
+    try {
+      await executePipeline(config, datasetPath, targetColumn);
+    } catch (err) {
+      console.error('Pipeline execution failed:', err);
+    }
+  };
+
+  const handleStopExecution = () => {
+    // Note: This would require a stop endpoint in the backend
+    console.log('Stopping pipeline execution...');
+    reset();
+    setIsStarted(false);
+  };
+
+  const handleReset = () => {
+    reset();
+    setIsStarted(false);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-100';
+      case 'running':
+        return 'text-blue-600 bg-blue-100';
+      case 'failed':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return CheckCircleIcon;
+      case 'running':
+        return ArrowPathIcon;
+      case 'failed':
+        return ExclamationTriangleIcon;
+      default:
+        return ClockIcon;
+    }
+  };
+
+  const renderExecutionStatus = () => {
+    if (!isStarted && !taskId) return null;
+
+    const StatusIcon = status ? getStatusIcon(status.status) : ClockIcon;
+    const statusColor = status ? getStatusColor(status.status) : 'text-gray-600 bg-gray-100';
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-lg border border-gray-200 p-6"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-full ${statusColor}`}>
+              <StatusIcon className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {status?.status === 'running' ? 'Training in Progress' : 
+                 status?.status === 'completed' ? 'Training Complete' :
+                 status?.status === 'failed' ? 'Training Failed' : 'Initializing...'}
+              </h3>
+              <p className="text-sm text-gray-600">
+                Task ID: {taskId}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Progress</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {status ? Math.round(status.progress * 100) : 0}%
+            </p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-4">
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <motion.div
+              className="bg-blue-500 h-3 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${status ? status.progress * 100 : 0}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        </div>
+
+        {/* Status Message */}
+        {status?.message && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-700">{status.message}</p>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {status?.error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-center space-x-2">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+              <p className="text-sm text-red-700">{status.error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Estimated Time */}
+        {status?.status === 'running' && config && (
+          <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center space-x-1">
+              <ClockIcon className="h-4 w-4" />
+              <span>Estimated remaining: {formatDuration(config.time_budget * (1 - status.progress))}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-3 mt-4">
+          {status?.status === 'running' && (
+            <button
+              onClick={handleStopExecution}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200"
+            >
+              <StopIcon className="h-4 w-4" />
+              <span>Stop</span>
+            </button>
+          )}
+          
+          {(status?.status === 'completed' || status?.status === 'failed') && (
+            <button
+              onClick={handleReset}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderConfiguration = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-lg border border-gray-200 p-6"
+    >
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Execution Configuration</h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Dataset Path
+          </label>
+          <input
+            type="text"
+            value={datasetPath}
+            onChange={(e) => setDatasetPath(e.target.value)}
+            placeholder="Path to your dataset file"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target Column
+          </label>
+          <input
+            type="text"
+            value={targetColumn}
+            onChange={(e) => setTargetColumn(e.target.value)}
+            placeholder="Name of the target column"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {config && (
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Time Budget</p>
+              <p className="text-sm text-gray-600">{formatDuration(config.time_budget)}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700">Optimization Metric</p>
+              <p className="text-sm text-gray-600">{config.optimization_metric}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+
+  const renderError = () => {
+    if (!error) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-red-50 border border-red-200 rounded-lg p-4"
+      >
+        <div className="flex items-center space-x-2">
+          <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+          <h3 className="text-sm font-medium text-red-800">Execution Failed</h3>
+        </div>
+        <p className="mt-1 text-sm text-red-700">{error}</p>
+        <button
+          onClick={handleReset}
+          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+        >
+          Try again
+        </button>
+      </motion.div>
+    );
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Execution Control */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <PlayIcon className="h-5 w-5" />
-            <span>Pipeline Execution</span>
-          </CardTitle>
-          <CardDescription>
-            Start and monitor your autonomous ML pipeline
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              {!isRunning ? (
-                <Button
-                  onClick={onStartPipeline}
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                >
-                  <PlayIcon className="h-5 w-5 mr-2" />
-                  Start Pipeline
-                </Button>
-              ) : (
-                <Button
-                  onClick={onStopPipeline}
-                  variant="destructive"
-                  size="lg"
-                >
-                  <StopIcon className="h-5 w-5 mr-2" />
-                  Stop Pipeline
-                </Button>
-              )}
-            </div>
+    <div className={`space-y-6 ${className}`}>
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900">Execute Pipeline</h2>
+        <p className="mt-2 text-gray-600">
+          Start the autonomous machine learning pipeline
+        </p>
+      </div>
 
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Status</div>
-              <Badge variant={isRunning ? "default" : "secondary"}>
-                {isRunning ? "Running" : "Ready"}
-              </Badge>
-            </div>
+      {/* Configuration */}
+      {!isStarted && renderConfiguration()}
+
+      {/* Error */}
+      {error && renderError()}
+
+      {/* Execution Status */}
+      {renderExecutionStatus()}
+
+      {/* Start Button */}
+      {!isStarted && !executing && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <button
+            onClick={handleStartExecution}
+            disabled={!config || !datasetPath || !targetColumn}
+            className="inline-flex items-center space-x-2 px-8 py-4 text-lg font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <PlayIcon className="h-6 w-6" />
+            <span>Start Pipeline Execution</span>
+          </button>
+          
+          {(!config || !datasetPath || !targetColumn) && (
+            <p className="mt-2 text-sm text-gray-500">
+              Please configure the pipeline and upload a dataset first
+            </p>
+          )}
+        </motion.div>
+      )}
+
+      {/* Loading State */}
+      {executing && !taskId && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-8"
+        >
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Starting pipeline execution...</p>
+        </motion.div>
+      )}
+
+      {/* Info Panel */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+      >
+        <div className="flex items-start space-x-2">
+          <InformationCircleIcon className="h-5 w-5 text-blue-500 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Execution Information</h3>
+            <ul className="mt-1 text-sm text-blue-700 space-y-1">
+              <li>• The pipeline will automatically select and optimize multiple ML models</li>
+              <li>• Progress updates will be shown in real-time</li>
+              <li>• You can stop the execution at any time</li>
+              <li>• Results will be available once training is complete</li>
+            </ul>
           </div>
-
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Overall Progress</span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <Progress value={progress} className="h-3" />
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <div className="text-lg font-semibold">{modelsTrained}/{totalModels}</div>
-              <div className="text-xs text-muted-foreground">Models Trained</div>
-            </div>
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <div className="text-lg font-semibold">{formatTime(elapsedTime)}</div>
-              <div className="text-xs text-muted-foreground">Elapsed Time</div>
-            </div>
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <div className="text-lg font-semibold">{formatTime(estimatedTimeRemaining)}</div>
-              <div className="text-xs text-muted-foreground">Est. Remaining</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pipeline Steps */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline Steps</CardTitle>
-          <CardDescription>
-            Real-time progress of each pipeline stage
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="space-y-4">
-            {steps.map((step, index) => {
-              const Icon = step.icon
-              
-              return (
-                <motion.div
-                  key={step.id}
-                  className={cn(
-                    "flex items-center space-x-4 p-4 rounded-lg border transition-all",
-                    step.status === 'running' && "border-primary bg-primary/5",
-                    step.status === 'completed' && "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20",
-                    step.status === 'error' && "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20",
-                    step.status === 'pending' && "border-input"
-                  )}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <div className="flex-shrink-0">
-                    {step.status === 'completed' ? (
-                      <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                    ) : step.status === 'error' ? (
-                      <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-                    ) : step.status === 'running' ? (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Icon className="h-6 w-6 text-primary" />
-                      </motion.div>
-                    ) : (
-                      <Icon className="h-6 w-6 text-muted-foreground" />
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{step.name}</h3>
-                      <Badge
-                        variant={
-                          step.status === 'completed' ? 'success' :
-                          step.status === 'running' ? 'default' :
-                          step.status === 'error' ? 'destructive' : 'secondary'
-                        }
-                      >
-                        {step.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{step.description}</p>
-                  </div>
-
-                  {step.status === 'running' && (
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </motion.div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </motion.div>
     </div>
-  )
-}
+  );
+};
+
+export default PipelineExecutionComponent;

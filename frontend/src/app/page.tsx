@@ -1,254 +1,146 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Navigation } from "@/components/layout/navigation"
-import { Hero } from "@/components/landing/hero"
-import { Header } from "@/components/layout/header"
-import { Sidebar } from "@/components/layout/sidebar"
-import { MobileStepIndicator } from "@/components/layout/mobile-step-indicator"
-import { DataUpload } from "@/components/dashboard/data-upload"
-import { PipelineConfig } from "@/components/dashboard/pipeline-config"
-import { PipelineExecution } from "@/components/dashboard/pipeline-execution"
-import { ResultsVisualization } from "@/components/dashboard/results-visualization"
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { 
+  SparklesIcon, 
+  ChartBarIcon, 
+  CpuChipIcon,
+  RocketLaunchIcon,
+  ArrowRightIcon,
+  PlayIcon
+} from "@heroicons/react/24/outline";
+import Logo from "@/components/ui/logo";
 
-export default function Home() {
-  const [isDark, setIsDark] = useState(false)
-  const [currentPage, setCurrentPage] = useState('home')
-  const [currentStep, setCurrentStep] = useState(0)
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-  
-  // Pipeline configuration state
-  const [targetColumn, setTargetColumn] = useState("")
-  const [optimizationMetric, setOptimizationMetric] = useState("accuracy")
-  const [timeBudget, setTimeBudget] = useState(60)
-  const [maxModels, setMaxModels] = useState(10)
-  const [cvFolds, setCvFolds] = useState(5)
-  const [enableEnsemble, setEnableEnsemble] = useState(true)
-  const [enableInterpretability, setEnableInterpretability] = useState(true)
-  const [enableMetaLearning, setEnableMetaLearning] = useState(true)
-  
-  // Pipeline execution state
-  const [isRunning, setIsRunning] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [currentStepName, setCurrentStepName] = useState("")
-  const [modelsTrained, setModelsTrained] = useState(0)
-  const [elapsedTime, setElapsedTime] = useState(0)
-  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0)
-  
-  // Results state
-  const [results, setResults] = useState(null)
-
-  // Theme toggle
-  const toggleTheme = () => {
-    setIsDark(!isDark)
-    document.documentElement.classList.toggle('dark')
-  }
-
-  // Navigation handler
-  const handleNavigate = (page: string) => {
-    setCurrentPage(page)
-    if (page === 'dashboard') {
-      setCurrentStep(0)
-    }
-  }
-
-  // Get started handler
-  const handleGetStarted = () => {
-    setCurrentPage('dashboard')
-    setCurrentStep(0)
-  }
-
-  // File upload handler
-  const handleFileUpload = (file: File) => {
-    setUploadedFile(file)
-    setCurrentStep(1)
-  }
-
-  const handleRemoveFile = () => {
-    setUploadedFile(null)
-    setCurrentStep(0)
-  }
-
-  // Pipeline execution handlers
-  const handleStartPipeline = async () => {
-    if (!uploadedFile || !targetColumn) return
-    
-    setIsRunning(true)
-    setCurrentStep(2)
-    setProgress(0)
-    setModelsTrained(0)
-    setElapsedTime(0)
-    
-    // Simulate pipeline execution
-    const totalSteps = 7
-    const stepDuration = 3000 // 3 seconds per step
-    
-    for (let i = 0; i < totalSteps; i++) {
-      setCurrentStepName([
-        "Data Ingestion",
-        "Data Preprocessing", 
-        "Model Selection",
-        "Hyperparameter Optimization",
-        "Model Training",
-        "Ensemble Building",
-        "Model Interpretation"
-      ][i])
-      
-      // Simulate model training progress
-      const modelsPerStep = Math.floor(maxModels / totalSteps)
-      for (let j = 0; j < modelsPerStep; j++) {
-        await new Promise(resolve => setTimeout(resolve, stepDuration / modelsPerStep))
-        setModelsTrained(prev => prev + 1)
-        setProgress(prev => prev + (100 / maxModels))
-      }
-      
-      setElapsedTime(prev => prev + stepDuration / 1000)
-    }
-    
-    // Generate mock results
-    setResults({
-      bestModel: "XGBoost",
-      leaderboard: [
-        { name: "XGBoost", accuracy: 0.9234, precision: 0.9156, recall: 0.9289, f1: 0.9222, trainingTime: 45.2, crossValScore: 0.9187, crossValStd: 0.0123 },
-        { name: "Random Forest", accuracy: 0.9102, precision: 0.9056, recall: 0.9123, f1: 0.9089, trainingTime: 32.1, crossValScore: 0.9078, crossValStd: 0.0156 },
-        { name: "LightGBM", accuracy: 0.9087, precision: 0.9012, recall: 0.9145, f1: 0.9078, trainingTime: 28.9, crossValScore: 0.9056, crossValStd: 0.0134 },
-        { name: "Logistic Regression", accuracy: 0.8756, precision: 0.8678, recall: 0.8823, f1: 0.8750, trainingTime: 12.3, crossValScore: 0.8723, crossValStd: 0.0189 },
-        { name: "k-NN", accuracy: 0.8234, precision: 0.8156, recall: 0.8289, f1: 0.8222, trainingTime: 8.7, crossValScore: 0.8187, crossValStd: 0.0223 }
-      ],
-      featureImportance: {
-        "feature_1": 0.234,
-        "feature_2": 0.189,
-        "feature_3": 0.156,
-        "feature_4": 0.134,
-        "feature_5": 0.112,
-        "feature_6": 0.089,
-        "feature_7": 0.067,
-        "feature_8": 0.045,
-        "feature_9": 0.034,
-        "feature_10": 0.023
-      },
-      modelInsights: "The XGBoost model achieved the best performance with 92.34% accuracy. Key insights include: 1) Feature_1 and Feature_2 are the most important predictors, 2) The ensemble approach improved performance by 2.3% over individual models, 3) Cross-validation shows consistent performance across folds, 4) The model shows good generalization with low overfitting risk. Recommendations: Consider feature engineering for Feature_3 and Feature_4 to potentially improve performance further.",
-      trainingTime: 180.5,
-      totalIterations: maxModels
-    })
-    
-    setIsRunning(false)
-    setCurrentStep(3)
-  }
-
-  const handleStopPipeline = () => {
-    setIsRunning(false)
-    setProgress(0)
-    setModelsTrained(0)
-    setElapsedTime(0)
-  }
-
-  // Step content renderer
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          <DataUpload
-            onFileUpload={handleFileUpload}
-            uploadedFile={uploadedFile}
-            onRemoveFile={handleRemoveFile}
-          />
-        )
-      case 1:
-        return (
-          <PipelineConfig
-            targetColumn={targetColumn}
-            onTargetColumnChange={setTargetColumn}
-            optimizationMetric={optimizationMetric}
-            onOptimizationMetricChange={setOptimizationMetric}
-            timeBudget={timeBudget}
-            onTimeBudgetChange={setTimeBudget}
-            maxModels={maxModels}
-            onMaxModelsChange={setMaxModels}
-            cvFolds={cvFolds}
-            onCvFoldsChange={setCvFolds}
-            enableEnsemble={enableEnsemble}
-            onEnableEnsembleChange={setEnableEnsemble}
-            enableInterpretability={enableInterpretability}
-            onEnableInterpretabilityChange={setEnableInterpretability}
-            enableMetaLearning={enableMetaLearning}
-            onEnableMetaLearningChange={setEnableMetaLearning}
-          />
-        )
-      case 2:
-        return (
-          <PipelineExecution
-            onStartPipeline={handleStartPipeline}
-            onStopPipeline={handleStopPipeline}
-            isRunning={isRunning}
-            progress={progress}
-            currentStep={currentStepName}
-            modelsTrained={modelsTrained}
-            totalModels={maxModels}
-            elapsedTime={elapsedTime}
-            estimatedTimeRemaining={estimatedTimeRemaining}
-          />
-        )
-      case 3:
-        return <ResultsVisualization results={results} />
-      default:
-        return null
-    }
-  }
-
-  // Render content based on current page
-  const renderPageContent = () => {
-    if (currentPage === 'home') {
-      return (
-        <div className="min-h-screen">
-          <Hero onGetStarted={handleGetStarted} />
-        </div>
-      )
-    }
-
-    return (
-      <div className="flex h-screen bg-background">
-        {/* Sidebar */}
-        <Sidebar currentStep={currentStep} onStepClick={setCurrentStep} />
-        
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
-          <Header onToggleTheme={toggleTheme} isDark={isDark} />
-          
-          {/* Mobile Step Indicator */}
-          <MobileStepIndicator currentStep={currentStep} onStepClick={setCurrentStep} />
-          
-          {/* Content Area */}
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="max-w-6xl mx-auto"
-            >
-              {renderStepContent()}
-            </motion.div>
-          </main>
-        </div>
-      </div>
-    )
-  }
-
+export default function HomePage() {
   return (
-    <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-blue-900">
       {/* Navigation */}
-      <Navigation 
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
-        onNavigate={handleNavigate}
-        currentPage={currentPage}
-      />
-      
-      {/* Page Content */}
-      {renderPageContent()}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Logo size="md" />
+
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#features" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+                Features
+              </a>
+              <a href="#how-it-works" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+                How it Works
+              </a>
+              <a href="#pricing" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+                Pricing
+              </a>
+            </div>
+
+            {/* CTA Button */}
+            <a 
+              href="/dashboard"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
+            >
+              Get Started
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full border border-blue-200 dark:border-blue-800 mb-8">
+              <Logo size="sm" showText={false} className="mr-3" />
+              <span className="text-blue-700 dark:text-blue-300 text-sm font-semibold">
+                AI-Powered Machine Learning Platform
+              </span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">
+              Build Better Models
+              <br />
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Automatically
+              </span>
+            </h1>
+
+            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto mb-12 leading-relaxed">
+              Upload your data, configure your pipeline, and let our AI agent automatically build, 
+              train, and optimize machine learning models for you. No coding required.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+              <motion.a
+                href="/dashboard"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center"
+              >
+                Start Building
+                <ArrowRightIcon className="w-5 h-5 ml-2" />
+              </motion.a>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 px-8 py-4 rounded-lg text-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 flex items-center justify-center"
+              >
+                <PlayIcon className="w-5 h-5 mr-2" />
+                Watch Demo
+              </motion.button>
+            </div>
+          </motion.div>
+
+          {/* Feature Cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+          >
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-6 mx-auto">
+                <CpuChipIcon className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+                AI-Powered Pipeline
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300">
+                Intelligent preprocessing, feature engineering, and model selection powered by advanced AI algorithms.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center mb-6 mx-auto">
+                <ChartBarIcon className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+                Automated Optimization
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300">
+                Hyperparameter tuning and model optimization with meta-learning for faster convergence.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-6 mx-auto">
+                <RocketLaunchIcon className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+                Production Ready
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300">
+                Deploy models with confidence using our automated deployment pipeline and monitoring.
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </div>
-  )
+  );
 }
