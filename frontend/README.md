@@ -1,225 +1,223 @@
-# Autonomous ML Agent - Frontend
+# Autonomous ML Agent Frontend
 
-A modern, responsive React/Next.js frontend for the Autonomous Machine Learning Agent. This application provides an intuitive interface for uploading datasets, configuring ML pipelines, and visualizing results.
+A modern, responsive frontend for the Autonomous ML Agent built with Next.js, TypeScript, and Tailwind CSS.
 
-## 🚀 Features
+## Features
 
-### 🎨 Modern Design
-- **Beautiful UI**: Clean, modern interface with smooth animations
-- **Dark/Light Mode**: Toggle between themes with smooth transitions
-- **Responsive Design**: Optimized for mobile, tablet, and desktop
-- **Accessibility**: Built with accessibility best practices
+### 🚀 Core Features
+- **Dataset Upload & Analysis**: Drag-and-drop interface for uploading CSV, Excel, and JSON files
+- **Pipeline Configuration**: Interactive configuration panel with presets and custom settings
+- **Real-time Execution Monitoring**: Live progress tracking with WebSocket-like updates
+- **Results Visualization**: Comprehensive charts and tables for model performance analysis
+- **Model Deployment**: One-click deployment to production environments
 
-### 📊 Dashboard Features
-- **Data Upload**: Drag-and-drop CSV file upload with validation
-- **Pipeline Configuration**: Intuitive parameter setting with real-time feedback
-- **Live Execution**: Real-time pipeline progress with step-by-step tracking
-- **Results Visualization**: Interactive charts and model performance metrics
-- **AI Insights**: Generated explanations and recommendations
+### 📊 Visualization Components
+- **Leaderboard**: Ranked model performance comparison
+- **Performance Charts**: Interactive charts using Recharts
+- **Feature Importance**: Visual representation of feature contributions
+- **Training Progress**: Real-time training progress with ETA
 
-### 🛠 Technical Features
-- **TypeScript**: Full type safety and better developer experience
-- **Tailwind CSS**: Utility-first CSS framework for rapid styling
-- **Framer Motion**: Smooth animations and transitions
-- **Radix UI**: Accessible, unstyled UI components
-- **Heroicons**: Beautiful SVG icons
+### 🎨 UI/UX Features
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Dark/Light Mode**: Theme switching capability
+- **Smooth Animations**: Framer Motion animations for better UX
+- **Accessibility**: WCAG 2.1 AA compliant components
 
-## 🏗 Architecture
+## Technology Stack
 
-```
-src/
-├── app/                    # Next.js app router
-│   ├── globals.css        # Global styles and CSS variables
-│   ├── layout.tsx         # Root layout with metadata
-│   └── page.tsx           # Main page component
-├── components/
-│   ├── dashboard/         # Dashboard-specific components
-│   │   ├── data-upload.tsx
-│   │   ├── pipeline-config.tsx
-│   │   ├── pipeline-execution.tsx
-│   │   └── results-visualization.tsx
-│   ├── landing/           # Landing page components
-│   │   └── hero.tsx
-│   ├── layout/            # Layout components
-│   │   ├── header.tsx
-│   │   ├── navigation.tsx
-│   │   ├── sidebar.tsx
-│   │   └── mobile-step-indicator.tsx
-│   └── ui/                # Reusable UI components
-│       ├── badge.tsx
-│       ├── button.tsx
-│       ├── card.tsx
-│       └── progress.tsx
-└── lib/
-    └── utils.ts           # Utility functions
-```
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Charts**: Recharts
+- **Icons**: Heroicons
+- **State Management**: React Hooks + Local Storage
+- **API Client**: Fetch with TypeScript types
 
-## 🎯 Key Components
-
-### Landing Page
-- **Hero Section**: Compelling introduction with feature highlights
-- **Navigation**: Responsive navigation with mobile menu
-- **Call-to-Action**: Clear path to get started
-
-### Dashboard
-- **Step-by-Step Workflow**: Guided pipeline creation process
-- **Real-Time Updates**: Live progress tracking during execution
-- **Interactive Results**: Comprehensive model performance visualization
-- **Mobile-Friendly**: Optimized for all screen sizes
-
-### UI Components
-- **Design System**: Consistent, reusable components
-- **Accessibility**: WCAG compliant components
-- **Animations**: Smooth, purposeful motion design
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+ 
 - npm or yarn
+- Backend API running on `http://localhost:8000`
 
 ### Installation
 
 1. **Install dependencies**:
    ```bash
    npm install
+   # or
+   yarn install
    ```
 
-2. **Start development server**:
+2. **Set up environment variables**:
+   Create a `.env.local` file in the frontend directory:
+   ```bash
+   NEXT_PUBLIC_API_URL=http://localhost:8000
+   ```
+
+3. **Start the development server**:
    ```bash
    npm run dev
+   # or
+   yarn dev
    ```
 
-3. **Open in browser**:
-   Navigate to [http://localhost:3000](http://localhost:3000)
+4. **Open your browser**:
+   Navigate to `http://localhost:3000`
 
-### Available Scripts
+### Building for Production
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript type checking
-
-## 🎨 Design System
-
-### Colors
-- **Primary**: Blue gradient (`from-blue-600 to-purple-600`)
-- **Secondary**: Muted grays for subtle elements
-- **Success**: Green for positive states
-- **Warning**: Yellow for caution states
-- **Destructive**: Red for error states
-
-### Typography
-- **Font**: Geist Sans (primary), Geist Mono (code)
-- **Scale**: Consistent sizing with Tailwind's typography scale
-- **Hierarchy**: Clear visual hierarchy with proper contrast
-
-### Spacing
-- **Consistent**: 4px base unit with Tailwind spacing scale
-- **Responsive**: Adaptive spacing for different screen sizes
-- **Breathing Room**: Adequate whitespace for readability
-
-### Components
-- **Cards**: Elevated containers with subtle shadows
-- **Buttons**: Multiple variants with hover states
-- **Forms**: Accessible form controls with validation
-- **Progress**: Visual progress indicators
-- **Badges**: Status and category indicators
-
-## 📱 Responsive Design
-
-### Breakpoints
-- **Mobile**: < 640px
-- **Tablet**: 640px - 1024px  
-- **Desktop**: > 1024px
-
-### Mobile Optimizations
-- **Touch-Friendly**: Larger touch targets
-- **Simplified Navigation**: Collapsible mobile menu
-- **Step Indicator**: Horizontal progress indicator
-- **Optimized Layout**: Stacked layouts for small screens
-
-## 🌙 Dark Mode
-
-### Implementation
-- **CSS Variables**: Dynamic theming with CSS custom properties
-- **Smooth Transitions**: Animated theme switching
-- **System Preference**: Respects user's system preference
-- **Manual Toggle**: User-controlled theme switching
-
-### Color Scheme
-- **Light**: Clean whites and subtle grays
-- **Dark**: Deep grays with high contrast accents
-- **Consistent**: Maintains brand colors in both themes
-
-## 🎭 Animations
-
-### Framer Motion
-- **Page Transitions**: Smooth route transitions
-- **Component Animations**: Entrance and exit animations
-- **Micro-Interactions**: Button hover and click effects
-- **Loading States**: Animated progress indicators
-
-### Performance
-- **Optimized**: Hardware-accelerated animations
-- **Reduced Motion**: Respects user preferences
-- **Smooth**: 60fps animations with proper easing
-
-## 🔧 Customization
-
-### Theme Customization
-Edit `src/app/globals.css` to modify:
-- Color schemes
-- Typography scales
-- Spacing values
-- Border radius
-
-### Component Customization
-All UI components are built with:
-- **Variants**: Multiple style options
-- **Composition**: Flexible component composition
-- **Theming**: CSS variable-based theming
-
-## 🚀 Deployment
-
-### Build for Production
 ```bash
 npm run build
+npm start
 ```
 
-### Deploy to Vercel
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── dashboard/         # Dashboard page
+│   ├── layout.tsx         # Root layout
+│   ├── page.tsx          # Landing page
+│   └── globals.css       # Global styles
+├── components/            # React components
+│   ├── dashboard/        # Dashboard-specific components
+│   │   ├── dashboard.tsx
+│   │   ├── dataset-upload.tsx
+│   │   ├── pipeline-config.tsx
+│   │   ├── pipeline-execution.tsx
+│   │   └── results-visualization.tsx
+│   └── ui/               # Reusable UI components
+│       ├── alert.tsx
+│       ├── loading-spinner.tsx
+│       └── logo.tsx
+└── lib/                  # Utility libraries
+    ├── api.ts           # API client
+    ├── config.ts        # Configuration
+    ├── hooks.ts         # Custom React hooks
+    └── types.ts         # TypeScript type definitions
+```
+
+## API Integration
+
+The frontend communicates with the backend through a comprehensive API client that handles:
+
+- **Dataset Analysis**: Upload and analyze datasets
+- **Pipeline Execution**: Start, monitor, and manage ML pipelines
+- **Real-time Updates**: Polling-based status updates
+- **Results Retrieval**: Download and display results
+- **Error Handling**: Comprehensive error management
+
+### Key API Endpoints
+
+- `POST /analyze` - Analyze uploaded dataset
+- `POST /pipeline/run` - Start pipeline execution
+- `GET /pipeline/status/{task_id}` - Get task status
+- `POST /predict` - Make predictions
+- `GET /model/info/{task_id}` - Get model information
+- `GET /tasks` - List all tasks
+
+## Customization
+
+### Themes
+The app supports light and dark themes. Theme configuration can be found in `src/lib/config.ts`.
+
+### Configuration
+All configuration options are centralized in `src/lib/config.ts`:
+- API endpoints
+- Feature flags
+- Default pipeline settings
+- UI preferences
+
+### Adding New Components
+1. Create component in appropriate directory
+2. Export from component index if needed
+3. Add TypeScript types in `src/lib/types.ts`
+4. Update documentation
+
+## Development Guidelines
+
+### Code Style
+- Use TypeScript for all components
+- Follow React best practices
+- Use Tailwind CSS for styling
+- Implement proper error handling
+- Write accessible components
+
+### State Management
+- Use React hooks for local state
+- Use custom hooks for API interactions
+- Store user preferences in localStorage
+- Implement proper loading and error states
+
+### Performance
+- Implement proper loading states
+- Use React.memo for expensive components
+- Lazy load heavy components
+- Optimize bundle size
+
+## Testing
+
 ```bash
-npx vercel
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
 ```
 
-### Environment Variables
-- `NEXT_PUBLIC_API_URL` - Backend API URL
-- `NEXT_PUBLIC_APP_NAME` - Application name
+## Deployment
 
-## 🤝 Contributing
+### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
 
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit changes**: `git commit -m 'Add amazing feature'`
-4. **Push to branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
+### Docker
+```bash
+# Build Docker image
+docker build -t ml-agent-frontend .
 
-### Development Guidelines
-- **TypeScript**: Use strict typing
-- **Components**: Follow component composition patterns
-- **Styling**: Use Tailwind utility classes
-- **Accessibility**: Ensure WCAG compliance
-- **Testing**: Write tests for new features
+# Run container
+docker run -p 3000:3000 ml-agent-frontend
+```
 
-## 📄 License
+### Static Export
+```bash
+npm run build
+npm run export
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Contributing
 
-## 🙏 Acknowledgments
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-- **Next.js** - React framework
-- **Tailwind CSS** - Utility-first CSS
-- **Framer Motion** - Animation library
-- **Radix UI** - Accessible components
-- **Heroicons** - Beautiful icons
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support and questions:
+- Create an issue on GitHub
+- Check the documentation
+- Review the API documentation
+
+## Roadmap
+
+### Upcoming Features
+- [ ] Advanced data visualization
+- [ ] Model comparison tools
+- [ ] Automated report generation
+- [ ] Team collaboration features
+- [ ] API key management
+- [ ] Advanced deployment options

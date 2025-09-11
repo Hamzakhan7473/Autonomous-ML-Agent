@@ -67,7 +67,7 @@ export function Hero({ onGetStarted }: HeroProps) {
               </span>
             </h1>
             
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
               Upload your data, configure your pipeline, and let our AI agent automatically 
               build, train, and optimize machine learning models for you.
             </p>
@@ -119,7 +119,7 @@ export function Hero({ onGetStarted }: HeroProps) {
                       <feature.icon className="h-6 w-6 text-white" />
                     </div>
                     <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       {feature.description}
                     </p>
                   </CardContent>
