@@ -84,7 +84,7 @@ class HyperparameterOptimizer:
         logger.info(f"Best parameters: {self.best_params}")
         logger.info(f"Best score: {self.best_score:.4f}")
 
-        return self.best_model
+        return self.best_model, self.best_score, self.best_params
 
     def get_best_model(self) -> BaseEstimator | None:
         """Get the best model after optimization."""

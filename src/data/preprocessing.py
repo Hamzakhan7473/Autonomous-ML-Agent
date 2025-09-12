@@ -18,6 +18,46 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 logger = logging.getLogger(__name__)
 
 
+class PreprocessingConfig:
+    """Configuration class for data preprocessing."""
+    
+    def __init__(
+        self,
+        handle_missing: str = "auto",
+        encode_categorical: str = "onehot",
+        scale_features: str = "standard",
+        detect_outliers: bool = True,
+        outlier_method: str = "iqr",
+        outlier_threshold: float = 1.5,
+        create_interactions: bool = False,
+        create_polynomials: bool = False,
+        random_state: int = 42,
+    ):
+        """
+        Initialize preprocessing configuration.
+        
+        Args:
+            handle_missing: Strategy for handling missing values ('auto', 'drop', 'impute')
+            encode_categorical: Method for encoding categorical features ('onehot', 'label')
+            scale_features: Method for scaling features ('standard', 'minmax', 'robust')
+            detect_outliers: Whether to detect outliers
+            outlier_method: Method for outlier detection ('iqr', 'zscore')
+            outlier_threshold: Threshold for outlier detection
+            create_interactions: Whether to create feature interactions
+            create_polynomials: Whether to create polynomial features
+            random_state: Random state for reproducibility
+        """
+        self.handle_missing = handle_missing
+        self.encode_categorical = encode_categorical
+        self.scale_features = scale_features
+        self.detect_outliers = detect_outliers
+        self.outlier_method = outlier_method
+        self.outlier_threshold = outlier_threshold
+        self.create_interactions = create_interactions
+        self.create_polynomials = create_polynomials
+        self.random_state = random_state
+
+
 class DataPreprocessor:
     """Main data preprocessing class for the autonomous ML agent."""
 

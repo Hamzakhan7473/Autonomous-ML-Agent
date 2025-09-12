@@ -558,20 +558,20 @@ class AutonomousMLAgent:
 
             # Step 3: Data Preprocessing
             logger.info("Step 3: Preprocessing data...")
-            X_processed, preprocessor = self._preprocess_data(
+            X_processed, y_processed, preprocessor = self._preprocess_data(
                 df, target_column, execution_plan
             )
 
             # Step 4: Model Training and Optimization
             logger.info("Step 4: Training and optimizing models...")
             model_results = self._train_models(
-                X_processed, df[target_column], execution_plan
+                X_processed, y_processed, execution_plan
             )
 
             # Step 5: Model Evaluation
             logger.info("Step 5: Evaluating models...")
             evaluation_results = self._evaluate_models(
-                model_results, X_processed, df[target_column]
+                model_results, X_processed, y_processed
             )
 
             # Step 6: Generate Insights
@@ -591,7 +591,7 @@ class AutonomousMLAgent:
                 best_score=evaluation_results["best_score"],
                 best_params=evaluation_results["best_params"],
                 all_results=evaluation_results["all_results"],
-                preprocessing_config=preprocessor.config,
+                preprocessing_config=None,  # DataPreprocessor doesn't have config attribute
                 execution_plan=execution_plan,
                 execution_time=execution_time,
                 data_summary=summary,
@@ -620,13 +620,11 @@ class AutonomousMLAgent:
     def _preprocess_data(self, df: pd.DataFrame, target_column: str, execution_plan):
         """Preprocess the data according to the execution plan."""
         preprocess_config = self._create_preprocessing_config(execution_plan)
-        self.preprocessor = DataPreprocessor(preprocess_config)
+        self.preprocessor = DataPreprocessor(target_column, preprocess_config.random_state)
 
-        X = df.drop(columns=[target_column])
-        y = df[target_column]
-        X_processed = self.preprocessor.fit_transform(X, y)
+        X_processed, y_processed = self.preprocessor.fit_transform(df)
 
-        return X_processed, self.preprocessor
+        return X_processed, y_processed, self.preprocessor
 
     def _create_preprocessing_config(self, execution_plan):
         """Create preprocessing configuration from execution plan."""
@@ -670,15 +668,22 @@ class AutonomousMLAgent:
                     model_name, "random"
                 )
 
+                # Get default parameter grid for the model
+                param_grid = self._get_default_param_grid(model_name)
+                
                 optimizer = HyperparameterOptimizer(
-                    model=model,
-                    method=strategy,
-                    n_trials=50,
-                    timeout=time_per_model,
-                    cv_folds=5,
+                    model=model.model,  # Get the actual sklearn model
+                    param_grid=param_grid,
+                    cv=5,
+                    scoring="accuracy",
+                    n_jobs=-1,
                 )
 
-                best_model, best_score, best_params = optimizer.optimize(X, y)
+                # Convert to numpy arrays if needed
+                X_array = X.values if hasattr(X, 'values') else X
+                y_array = y.values if hasattr(y, 'values') else y
+                
+                best_model, best_score, best_params = optimizer.optimize(X_array, y_array, method=strategy)
 
                 model_results.append(
                     {
@@ -686,7 +691,7 @@ class AutonomousMLAgent:
                         "model": best_model,
                         "score": best_score,
                         "params": best_params,
-                        "training_time": best_model.training_time,
+                        "training_time": 0.0,  # Placeholder - sklearn models don't track training time
                     }
                 )
 
@@ -695,6 +700,46 @@ class AutonomousMLAgent:
                 continue
 
         return model_results
+
+    def _get_default_param_grid(self, model_name: str) -> dict:
+        """Get default parameter grid for a model."""
+        param_grids = {
+            "random_forest": {
+                "n_estimators": [50, 100, 200],
+                "max_depth": [None, 10, 20],
+                "min_samples_split": [2, 5, 10],
+            },
+            "logistic_regression": {
+                "C": [0.1, 1.0, 10.0],
+                "penalty": ["l1", "l2"],
+                "solver": ["liblinear", "saga"],
+            },
+            "xgboost": {
+                "n_estimators": [50, 100, 200],
+                "max_depth": [3, 6, 9],
+                "learning_rate": [0.01, 0.1, 0.2],
+            },
+            "lightgbm": {
+                "n_estimators": [50, 100, 200],
+                "max_depth": [3, 6, 9],
+                "learning_rate": [0.01, 0.1, 0.2],
+            },
+            "catboost": {
+                "iterations": [50, 100, 200],
+                "depth": [3, 6, 9],
+                "learning_rate": [0.01, 0.1, 0.2],
+            },
+            "knn": {
+                "n_neighbors": [3, 5, 7, 9],
+                "weights": ["uniform", "distance"],
+            },
+            "mlp": {
+                "hidden_layer_sizes": [(50,), (100,), (50, 50)],
+                "activation": ["relu", "tanh"],
+                "alpha": [0.0001, 0.001, 0.01],
+            },
+        }
+        return param_grids.get(model_name, {})
 
     def _evaluate_models(
         self, model_results: list[dict[str, Any]], X: pd.DataFrame, y: pd.Series

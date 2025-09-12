@@ -10,9 +10,31 @@ import os
 
 import joblib
 import numpy as np
-from catboost import CatBoostClassifier, CatBoostRegressor
-from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.base import BaseEstimator
+
+logger = logging.getLogger(__name__)
+
+# Optional imports for advanced models
+try:
+    from catboost import CatBoostClassifier, CatBoostRegressor
+    CATBOOST_AVAILABLE = True
+except ImportError:
+    CATBOOST_AVAILABLE = False
+    logger.warning("CatBoost not available. Install with: pip install catboost")
+
+try:
+    from lightgbm import LGBMClassifier, LGBMRegressor
+    LIGHTGBM_AVAILABLE = True
+except ImportError:
+    LIGHTGBM_AVAILABLE = False
+    logger.warning("LightGBM not available. Install with: pip install lightgbm")
+
+try:
+    from xgboost import XGBClassifier, XGBRegressor
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    XGBOOST_AVAILABLE = False
+    logger.warning("XGBoost not available. Install with: pip install xgboost")
 from sklearn.discriminant_analysis import (
     LinearDiscriminantAnalysis,
     QuadraticDiscriminantAnalysis,
@@ -39,9 +61,6 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from xgboost import XGBClassifier, XGBRegressor
-
-logger = logging.getLogger(__name__)
 
 
 class ModelFactory:
@@ -74,16 +93,24 @@ class ModelFactory:
             ),
             "lda": LinearDiscriminantAnalysis(),
             "qda": QuadraticDiscriminantAnalysis(),
-            "xgboost": XGBClassifier(
-                n_estimators=100, random_state=random_state, eval_metric="logloss"
-            ),
-            "lightgbm": LGBMClassifier(
-                n_estimators=100, random_state=random_state, verbose=-1
-            ),
-            "catboost": CatBoostClassifier(
-                iterations=100, random_state=random_state, verbose=False
-            ),
         }
+        
+        # Add optional models if available
+        if XGBOOST_AVAILABLE:
+            models["xgboost"] = XGBClassifier(
+                n_estimators=100, random_state=random_state, eval_metric="logloss"
+            )
+        
+        if LIGHTGBM_AVAILABLE:
+            models["lightgbm"] = LGBMClassifier(
+                n_estimators=100, random_state=random_state, verbose=-1
+            )
+        
+        if CATBOOST_AVAILABLE:
+            models["catboost"] = CatBoostClassifier(
+                iterations=100, random_state=random_state, verbose=False
+            )
+        
         return models
 
     @staticmethod
@@ -109,14 +136,22 @@ class ModelFactory:
             "mlp": MLPRegressor(
                 hidden_layer_sizes=(100, 50), random_state=random_state, max_iter=1000
             ),
-            "xgboost": XGBRegressor(n_estimators=100, random_state=random_state),
-            "lightgbm": LGBMRegressor(
-                n_estimators=100, random_state=random_state, verbose=-1
-            ),
-            "catboost": CatBoostRegressor(
-                iterations=100, random_state=random_state, verbose=False
-            ),
         }
+        
+        # Add optional models if available
+        if XGBOOST_AVAILABLE:
+            models["xgboost"] = XGBRegressor(n_estimators=100, random_state=random_state)
+        
+        if LIGHTGBM_AVAILABLE:
+            models["lightgbm"] = LGBMRegressor(
+                n_estimators=100, random_state=random_state, verbose=-1
+            )
+        
+        if CATBOOST_AVAILABLE:
+            models["catboost"] = CatBoostRegressor(
+                iterations=100, random_state=random_state, verbose=False
+            )
+        
         return models
 
     @staticmethod
