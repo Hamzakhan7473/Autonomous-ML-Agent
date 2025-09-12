@@ -142,17 +142,33 @@ async def analyze_dataset(file: UploadFile = File(...)):
             content = await file.read()
             buffer.write(content)
 
-        # Analyze dataset
-        df, schema, summary = analyze_data(
-            temp_path, "target"
-        )  # Will need to detect target column
+        # Load dataset to detect target column
+        import pandas as pd
+        df = pd.read_csv(temp_path)
+        
+        # Auto-detect target column (last column by default, or look for common names)
+        target_column = None
+        common_target_names = ['target', 'label', 'y', 'class', 'outcome', 'result']
+        
+        # Check if any column matches common target names
+        for col in df.columns:
+            if col.lower() in common_target_names:
+                target_column = col
+                break
+        
+        # If no common name found, use the last column
+        if target_column is None:
+            target_column = df.columns[-1]
+        
+        # Analyze dataset with detected target column
+        df, schema, summary = analyze_data(temp_path, target_column)
 
         # Clean up temp file
         os.remove(temp_path)
 
         return DatasetInfo(
             filename=file.filename,
-            target_column="target",  # This should be detected automatically
+            target_column=target_column,
             shape=df.shape,
             columns=df.columns.tolist(),
             target_type=schema.target_type,

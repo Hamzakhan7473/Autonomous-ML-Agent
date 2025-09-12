@@ -286,3 +286,7 @@ class ModelLeaderboard:
                 logger.warning(f"Failed to generate LLM insights: {e}")
         
         return insights
+
+
+# Alias for backward compatibility
+Leaderboard = ModelLeaderboard

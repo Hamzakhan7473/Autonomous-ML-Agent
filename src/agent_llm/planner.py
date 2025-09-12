@@ -187,8 +187,30 @@ Respond with only the JSON, no additional text.
             return response
         except Exception as e:
             logger.error(f"LLM planning failed: {e}")
-            # Fallback to rule-based planning
-            return self._fallback_plan(schema, summary)
+            # Return a simple fallback JSON response
+            return json.dumps({
+                "preprocessing_steps": [
+                    {
+                        "step": "missing_value_imputation",
+                        "method": "mean",
+                        "reasoning": "Fallback: Using mean imputation for missing values"
+                    },
+                    {
+                        "step": "scaling",
+                        "method": "standard",
+                        "reasoning": "Fallback: Using standard scaling"
+                    }
+                ],
+                "models_to_try": ["random_forest", "logistic_regression"],
+                "hyperparameter_strategies": {
+                    "random_forest": "random",
+                    "logistic_regression": "random"
+                },
+                "ensemble_strategy": "none",
+                "evaluation_metrics": ["accuracy"],
+                "reasoning": "Fallback plan due to LLM unavailability",
+                "confidence": 0.5
+            })
 
     def _parse_plan_response(self, response: str, schema: DatasetSchema, summary: dict[str, Any]) -> MLPlan:
         """Parse LLM response into MLPlan object."""
