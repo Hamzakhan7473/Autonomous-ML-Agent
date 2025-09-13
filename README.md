@@ -363,7 +363,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 **Support**
 
-* 📧 **Email**: team@autotab-ml.com
+* 📧 **Email**: hamzakhan@taxora.ai
+* 💼 **LinkedIn**: [Abu Hamza Khan](https://www.linkedin.com/in/abuhamzakhan/)
 * 💬 **Discussions**: [GitHub Discussions](https://github.com/Hamzakhan7473/Autonomous-ML-Agent/discussions)
 * 🐛 **Issues**: [GitHub Issues](https://github.com/Hamzakhan7473/Autonomous-ML-Agent/issues)
 * 📖 **Documentation**: [Wiki](https://github.com/Hamzakhan7473/Autonomous-ML-Agent/wiki)
