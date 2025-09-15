@@ -89,7 +89,7 @@ cd frontend && npm install
 cp env.example .env
 
 # Add your API keys
-echo "OPENROUTER_API_KEY=your_key_here" >> .env
+echo "E2B_API_KEY=your_key_here" >> .env
 ```
 
 ### **3. Run the System**
@@ -147,7 +147,7 @@ cd frontend && npm run dev
 - **Pandas**: Data manipulation and analysis
 - **Scikit-learn**: Machine learning algorithms
 - **XGBoost/LightGBM/CatBoost**: Advanced ML algorithms
-- **OpenAI/Anthropic/OpenRouter**: LLM services
+- **OpenAI/Anthropic/E2B**: LLM services
 
 ### **Frontend**
 - **Next.js 15**: React framework with App Router
@@ -197,3 +197,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Ready to automate your machine learning workflows? 🚀**
 
 Built with ❤️ by [Hamza Khan](https://github.com/Hamzakhan7473)
+

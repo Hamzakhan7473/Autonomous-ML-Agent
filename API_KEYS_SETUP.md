@@ -15,7 +15,7 @@ Edit the `.env` file and add your actual API keys:
 
 ```env
 # Google Cloud Gemini API
-GOOGLE_API_KEY=your_actual_google_api_key_here
+GEMINI_API_KEY=your_actual_google_api_key_here
 
 # OpenAI API  
 OPENAI_API_KEY=your_actual_openai_api_key_here
@@ -23,9 +23,12 @@ OPENAI_API_KEY=your_actual_openai_api_key_here
 # Anthropic API
 ANTHROPIC_API_KEY=your_actual_anthropic_api_key_here
 
+# E2B API (Access to secure sandbox environments)
+E2B_API_KEY=your_actual_e2b_api_key_here
+
 # Other configurations
 MLFLOW_TRACKING_URI=sqlite:///meta/mlflow.db
-DEFAULT_MODEL_PROVIDER=gemini
+DEFAULT_LLM_PROVIDER=e2b
 ```
 
 ## **Step 3: Get Your API Keys**
@@ -51,15 +54,25 @@ DEFAULT_MODEL_PROVIDER=gemini
 4. Create a new API key
 5. Copy the key to your `.env` file
 
+### **E2B API Key:**
+1. Go to [E2B](https://e2b.dev/)
+2. Sign in or create an account
+3. Go to API Keys section
+4. Create a new API key
+5. Copy the key to your `.env` file
+6. **Benefits**: Secure sandbox environments for code execution and LLM integration
+
 ## **Step 4: Test Your Setup**
 
 ```bash
-# Test Gemini
+# Test individual providers
 python -m src.cli test-llm --provider gemini
-
-# Test all providers
 python -m src.cli test-llm --provider openai
 python -m src.cli test-llm --provider anthropic
+python -m src.cli test-llm --provider e2b
+
+# Test E2B integration specifically
+python test_e2b.py
 
 # Run full demo
 python examples/gemini_integration_demo.py

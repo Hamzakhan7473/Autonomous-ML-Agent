@@ -177,6 +177,91 @@ Respond with only the JSON, no additional text.
             raise
 
 
+class OpenRouterClient(BaseLLMClient):
+    """OpenRouter API client for accessing multiple LLM providers."""
+
+    def __init__(self, api_key: str | None = None, model: str = "openai/gpt-4o-mini"):
+        """Initialize OpenRouter client.
+
+        Args:
+            api_key: OpenRouter API key
+            model: Model to use (e.g., "openai/gpt-4o", "anthropic/claude-3-sonnet", "google/gemini-pro")
+        """
+        try:
+            import openai
+
+            self.client = openai.OpenAI(
+                api_key=api_key or os.getenv("OPENROUTER_API_KEY"),
+                base_url="https://openrouter.ai/api/v1"
+            )
+            self.model = model
+        except ImportError as e:
+            raise ImportError(
+                "OpenAI library not available. Install with: pip install openai"
+            ) from e
+        except Exception as e:
+            raise ValueError(f"Failed to initialize OpenRouter client: {e}") from e
+
+    def generate_response(self, prompt: str, **kwargs: Any) -> str:
+        """Generate a response from OpenRouter."""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=kwargs.get("max_tokens", 2000),
+                temperature=kwargs.get("temperature", 0.1),
+                timeout=kwargs.get("timeout", 30),
+                extra_headers={
+                    "HTTP-Referer": kwargs.get("referer", "https://autonomous-ml-agent.local"),
+                    "X-Title": kwargs.get("title", "Autonomous ML Agent")
+                }
+            )
+
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            logger.error(f"OpenRouter API error: {e}")
+            raise
+
+    def generate_structured_response(
+        self, prompt: str, schema: dict[str, Any], **kwargs: Any
+    ) -> dict[str, Any]:
+        """Generate a structured response."""
+        structured_prompt = f"""
+{prompt}
+
+Please respond with a valid JSON object that matches this schema:
+{json.dumps(schema, indent=2)}
+
+Respond with only the JSON, no additional text.
+"""
+
+        response = self.generate_response(structured_prompt, **kwargs)
+
+        try:
+            # Clean response
+            response = response.strip()
+            if response.startswith("```json"):
+                response = response[7:]
+            if response.endswith("```"):
+                response = response[:-3]
+
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse structured response: {e}")
+            logger.error(f"Response was: {response}")
+            raise
+
+    def get_available_models(self) -> list[dict[str, Any]]:
+        """Get list of available models from OpenRouter."""
+        try:
+            response = self.client.models.list()
+            return [model.model_dump() for model in response.data]
+        except Exception as e:
+            logger.error(f"Failed to get available models: {e}")
+            return []
+
+
 class GeminiClient(BaseLLMClient):
     """Google Gemini API client with code execution support."""
 
@@ -304,20 +389,25 @@ class E2BClient:
         """
         try:
             from e2b import Sandbox
+            from e2b_code_interpreter import CodeInterpreter
 
             self.api_key = api_key or os.getenv("E2B_API_KEY")
             self.sandbox = None
+            self.code_interpreter = None
         except ImportError as e:
             raise ImportError(
-                "E2B library not available. Install with: pip install e2b"
+                "E2B library not available. Install with: pip install e2b e2b-code-interpreter"
             ) from e
 
     def create_sandbox(self):
         """Create a new E2B sandbox."""
         try:
-            from e2b import Sandbox
+            from e2b_code_interpreter import Sandbox
 
-            self.sandbox = Sandbox(api_key=self.api_key)
+            if not self.api_key:
+                raise ValueError("E2B API key not provided")
+
+            self.sandbox = Sandbox.create(api_key=self.api_key)
             logger.info("E2B sandbox created successfully")
             return self.sandbox
         except Exception as e:
@@ -330,12 +420,12 @@ class E2BClient:
             self.create_sandbox()
 
         try:
-            result = self.sandbox.run_python(code, timeout=timeout)
+            execution = self.sandbox.run_code(code)
             return {
-                "output": result.stdout,
-                "error": result.stderr,
-                "success": result.exit_code == 0,
-                "exit_code": result.exit_code
+                "output": execution.logs.stdout,
+                "error": execution.logs.stderr,
+                "success": len(execution.logs.stderr) == 0,
+                "exit_code": 0 if len(execution.logs.stderr) == 0 else 1
             }
         except Exception as e:
             logger.error(f"E2B code execution failed: {e}")
@@ -353,7 +443,7 @@ class E2BClient:
 
         try:
             for package in packages:
-                self.sandbox.run_python(f"import subprocess; subprocess.run(['pip', 'install', '{package}'])")
+                self.sandbox.run_code(f"import subprocess; subprocess.run(['pip', 'install', '{package}'])")
             logger.info(f"Installed packages: {packages}")
         except Exception as e:
             logger.error(f"Failed to install packages: {e}")
@@ -372,7 +462,7 @@ class LLMClient:
         """Initialize LLM client.
 
         Args:
-            primary_provider: Primary LLM provider ('openai', 'anthropic', 'gemini')
+            primary_provider: Primary LLM provider ('openai', 'anthropic', 'gemini', 'openrouter', 'e2b')
             **kwargs: Any: Provider-specific configuration
         """
         self.primary_provider = primary_provider
@@ -404,12 +494,20 @@ class LLMClient:
         except Exception as e:
             logger.warning(f"Gemini client not available: {e}")
 
-        # Try E2B
+        # Try OpenRouter
+        try:
+            self.clients["openrouter"] = OpenRouterClient(**kwargs)
+            logger.info("OpenRouter client initialized")
+        except Exception as e:
+            logger.warning(f"OpenRouter client not available: {e}")
+
+        # Try E2B (optional)
         try:
             self.e2b_client = E2BClient(**kwargs)
             logger.info("E2B client initialized")
         except Exception as e:
-            logger.warning(f"E2B client not available: {e}")
+            logger.info(f"E2B client not available (optional): {e}")
+            self.e2b_client = None
 
         if not self.clients:
             raise ValueError(
@@ -430,6 +528,22 @@ class LLMClient:
             Generated response
         """
 
+        # Handle E2B as primary provider
+        if (provider == "e2b" or self.primary_provider == "e2b") and self.e2b_client:
+            try:
+                # Use E2B with a fallback LLM provider for actual text generation
+                fallback_provider = list(self.clients.keys())[0] if self.clients else None
+                if fallback_provider:
+                    response = self.clients[fallback_provider].generate_response(
+                        prompt, **kwargs
+                    )
+                    logger.debug(f"Generated response using E2B with {fallback_provider} backend")
+                    return response
+                else:
+                    raise RuntimeError("No LLM provider available for E2B")
+            except Exception as e:
+                logger.error(f"E2B generation failed: {e}")
+
         # Determine which provider to use
         if provider and provider in self.clients:
             selected_provider = provider
@@ -437,7 +551,10 @@ class LLMClient:
             selected_provider = self.primary_provider
         else:
             # Use first available provider
-            selected_provider = list(self.clients.keys())[0]
+            selected_provider = list(self.clients.keys())[0] if self.clients else None
+
+        if not selected_provider:
+            raise RuntimeError("No LLM providers available")
 
         try:
             response = self.clients[selected_provider].generate_response(

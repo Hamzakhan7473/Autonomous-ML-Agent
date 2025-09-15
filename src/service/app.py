@@ -7,10 +7,23 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Pydantic models
+class TaskStatus(BaseModel):
+    task_id: str
+    status: str
+    progress: float
+    message: str
+    results: dict | None = None
+    error: str | None = None
 
 from ..core.ingest import analyze_data
 from ..core.orchestrator import AutonomousMLAgent, PipelineConfig
@@ -42,12 +55,55 @@ app.add_middleware(
 active_agents = {}
 llm_client = None
 
+# Task persistence
+TASKS_FILE = "tasks.json"
+
+def save_tasks():
+    """Save active tasks to file."""
+    try:
+        import json
+        tasks_data = {}
+        for task_id, task_info in active_agents.items():
+            tasks_data[task_id] = {
+                "status": task_info["status"],
+                "start_time": task_info["start_time"],
+                "config": task_info["config"].__dict__ if hasattr(task_info["config"], "__dict__") else None,
+                "request": task_info["request"].__dict__ if hasattr(task_info["request"], "__dict__") else None,
+            }
+        
+        with open(TASKS_FILE, "w") as f:
+            json.dump(tasks_data, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to save tasks: {e}")
+
+def load_tasks():
+    """Load tasks from file."""
+    try:
+        import json
+        if os.path.exists(TASKS_FILE):
+            with open(TASKS_FILE, "r") as f:
+                tasks_data = json.load(f)
+            
+            for task_id, task_info in tasks_data.items():
+                # Mark all loaded tasks as failed since server restarted
+                active_agents[task_id] = {
+                    "status": "failed",
+                    "start_time": task_info["start_time"],
+                    "config": None,
+                    "request": None,
+                    "error": "Server restarted during execution"
+                }
+            logger.info(f"Loaded {len(tasks_data)} tasks from file")
+    except Exception as e:
+        logger.warning(f"Failed to load tasks: {e}")
+
 
 # Pydantic models
 class DatasetInfo(BaseModel):
     """Dataset information model."""
 
     filename: str
+    dataset_path: str
     target_column: str
     shape: tuple
     columns: list[str]
@@ -110,10 +166,15 @@ class TaskStatus(BaseModel):
 async def startup_event():
     """Initialize the application."""
     global llm_client
+    
+    # Load existing tasks from file
+    load_tasks()
 
     try:
-        llm_client = LLMClient()
-        logger.info("LLM client initialized successfully")
+        # Prefer OpenRouter as primary provider for access to multiple LLM models
+        primary_provider = os.getenv("DEFAULT_LLM_PROVIDER", "openrouter")
+        llm_client = LLMClient(primary_provider=primary_provider)
+        logger.info(f"LLM client initialized successfully with primary provider: {primary_provider}")
     except Exception as e:
         logger.warning(f"LLM client initialization failed: {e}")
         llm_client = None
@@ -136,15 +197,17 @@ async def analyze_dataset(file: UploadFile = File(...)):
     """Analyze uploaded dataset."""
 
     try:
-        # Save uploaded file temporarily
-        temp_path = f"/tmp/{file.filename}"
-        with open(temp_path, "wb") as buffer:
+        # Save uploaded file to data/raw directory
+        import os
+        os.makedirs("data/raw", exist_ok=True)
+        file_path = f"data/raw/{file.filename}"
+        with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
 
         # Load dataset to detect target column
         import pandas as pd
-        df = pd.read_csv(temp_path)
+        df = pd.read_csv(file_path)
         
         # Auto-detect target column (last column by default, or look for common names)
         target_column = None
@@ -161,13 +224,11 @@ async def analyze_dataset(file: UploadFile = File(...)):
             target_column = df.columns[-1]
         
         # Analyze dataset with detected target column
-        df, schema, summary = analyze_data(temp_path, target_column)
-
-        # Clean up temp file
-        os.remove(temp_path)
+        df, schema, summary = analyze_data(file_path, target_column)
 
         return DatasetInfo(
             filename=file.filename,
+            dataset_path=file_path,
             target_column=target_column,
             shape=df.shape,
             columns=df.columns.tolist(),
@@ -209,6 +270,9 @@ async def run_pipeline(request: PipelineRequest, background_tasks: BackgroundTas
             "config": config,
             "request": request,
         }
+        
+        # Save tasks to file
+        save_tasks()
 
         # Run pipeline in background
         background_tasks.add_task(
@@ -241,24 +305,57 @@ async def get_task_status(task_id: str):
     task_info = active_agents[task_id]
 
     if task_info["status"] == "running":
-        # Check if task is still running
-        elapsed_time = time.time() - task_info["start_time"]
-        progress = min(elapsed_time / task_info["config"].time_budget, 1.0)
+        # Use stored progress from pipeline execution
+        progress = task_info.get("progress", 0.0)
+        message = task_info.get("message", "Pipeline running...")
+        
+        # Fallback to time-based progress if no progress stored
+        if progress == 0.0:
+            elapsed_time = time.time() - task_info["start_time"]
+            progress = min(elapsed_time / task_info["config"].time_budget, 0.95)  # Cap at 95% for running
+            message = f"Pipeline running... {elapsed_time:.1f}s elapsed"
 
         return TaskStatus(
             task_id=task_id,
             status="running",
             progress=progress,
-            message=f"Pipeline running... {elapsed_time:.1f}s elapsed",
+            message=message,
         )
 
     elif task_info["status"] == "completed":
+        results = task_info.get("results")
+        # Create a simple summary for API response
+        if results is not None:
+            try:
+                # Create a simple summary instead of full serialization
+                # Handle sklearn models and other non-serializable objects
+                try:
+                    all_results = getattr(results, 'all_results', [])
+                    models_trained = len(all_results) if isinstance(all_results, (list, tuple)) else 0
+                except:
+                    models_trained = 0
+                
+                results_summary = {
+                    "status": "completed",
+                    "best_model": getattr(results, 'best_model_name', 'unknown'),
+                    "best_score": float(getattr(results, 'best_score', 0.0)),
+                    "execution_time": float(getattr(results, 'execution_time', 0.0)),
+                    "models_trained": models_trained,
+                    "message": "Pipeline completed successfully"
+                }
+                results = results_summary
+            except Exception as e:
+                logger.warning(f"Failed to create results summary: {e}")
+                results = {"status": "completed", "message": "Pipeline completed successfully", "error": str(e)}
+        else:
+            results = {"status": "completed", "message": "Pipeline completed successfully"}
+        
         return TaskStatus(
             task_id=task_id,
             status="completed",
             progress=1.0,
             message="Pipeline completed successfully",
-            results=task_info.get("results"),
+            results=results,
         )
 
     elif task_info["status"] == "failed":
@@ -442,6 +539,43 @@ async def http_exception_handler(request, exc):
         status_code=exc.status_code,
         content={"error": exc.detail, "status_code": exc.status_code},
     )
+
+
+async def run_pipeline_background(task_id: str, dataset_path: str, target_column: str):
+    """Run pipeline in background."""
+    try:
+        if task_id not in active_agents:
+            logger.error(f"Task {task_id} not found")
+            return
+        
+        agent_info = active_agents[task_id]
+        agent = agent_info["agent"]
+        
+        # Progress callback function
+        def update_progress(progress: float, message: str):
+            if task_id in active_agents:
+                active_agents[task_id]["progress"] = progress
+                active_agents[task_id]["message"] = message
+                logger.info(f"Task {task_id} progress: {progress:.1%} - {message}")
+        
+        # Run the pipeline with progress callback
+        results = agent.run(dataset_path, target_column, progress_callback=update_progress)
+        
+        # Update task status
+        active_agents[task_id]["status"] = "completed"
+        active_agents[task_id]["progress"] = 1.0
+        active_agents[task_id]["results"] = results
+        
+        logger.info(f"Pipeline {task_id} completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Pipeline {task_id} failed: {e}")
+        if task_id in active_agents:
+            active_agents[task_id]["status"] = "failed"
+            active_agents[task_id]["error"] = str(e)
+    
+    # Save tasks after completion/failure
+    save_tasks()
 
 
 @app.exception_handler(Exception)

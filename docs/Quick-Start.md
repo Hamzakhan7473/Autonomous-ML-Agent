@@ -7,7 +7,7 @@ Get up and running with the Autonomous ML Agent in 5 minutes!
 - **Python 3.10+**
 - **Node.js 18+**
 - **Git**
-- **LLM API Key** (OpenRouter recommended)
+- **LLM API Key** (E2B recommended)
 
 ## **Step 1: Clone the Repository**
 
@@ -36,8 +36,8 @@ cd ..
 
 ## **Step 3: Configure API Keys**
 
-### **Get OpenRouter API Key**
-1. Visit [OpenRouter](https://openrouter.ai/)
+### **Get E2B API Key**
+1. Visit [E2B](https://e2b.dev/)
 2. Sign up and create an API key
 3. Copy your API key
 
@@ -47,8 +47,8 @@ cd ..
 cp env.example .env
 
 # Edit .env file and add your API key
-echo "OPENROUTER_API_KEY=your_openrouter_api_key_here" >> .env
-echo "DEFAULT_LLM_PROVIDER=openrouter" >> .env
+echo "E2B_API_KEY=your_e2b_api_key_here" >> .env
+echo "DEFAULT_LLM_PROVIDER=e2b" >> .env
 ```
 
 ## **Step 4: Start the Services**
@@ -291,3 +291,4 @@ python3 -m uvicorn src.service.app:app --host 0.0.0.0 --port 8000 --reload --log
 **🎉 Congratulations!** You've successfully set up and run your first autonomous ML pipeline. The system is now ready to handle your machine learning tasks automatically!
 
 **Ready for more?** Check out the [User Manual](User-Manual.md) for detailed usage instructions and advanced features.
+

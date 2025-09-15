@@ -114,7 +114,11 @@ Target Summary:
             context += f"\nPrior Run Results ({len(prior_runs)} runs):\n"
             for i, run in enumerate(prior_runs[-3:]):  # Show last 3 runs
                 context += f"Run {i+1}: Best model: {run.get('best_model', 'N/A')}, "
-                context += f"Score: {run.get('best_score', 'N/A'):.4f}\n"
+                score = run.get('best_score', 'N/A')
+                if score != 'N/A':
+                    context += f"Score: {score:.4f}\n"
+                else:
+                    context += f"Score: {score}\n"
 
         return context
 
@@ -314,7 +318,7 @@ Respond with only the JSON, no additional text.
                 {
                     "step": "missing_value_imputation",
                     "method": method,
-                    "reasoning": f"Missing values present ({schema.missing_percentage:.1f}%), using {method} imputation",
+                    "reasoning": f"Missing values present ({float(schema.missing_percentage):.1f}%), using {str(method)} imputation",
                 }
             )
 
@@ -328,7 +332,7 @@ Respond with only the JSON, no additional text.
                 {
                     "step": "categorical_encoding",
                     "method": method,
-                    "reasoning": f"Categorical features present ({schema.n_categorical}), using {method} encoding",
+                    "reasoning": f"Categorical features present ({int(schema.n_categorical)}), using {str(method)} encoding",
                 }
             )
 
@@ -346,7 +350,7 @@ Respond with only the JSON, no additional text.
             {
                 "step": "feature_selection",
                 "enabled": schema.n_features > 20,
-                "reasoning": f"Feature selection {'enabled' if schema.n_features > 20 else 'disabled'} due to feature count ({schema.n_features})",
+                "reasoning": f"Feature selection {'enabled' if schema.n_features > 20 else 'disabled'} due to feature count ({int(schema.n_features)})",
             }
         )
 
