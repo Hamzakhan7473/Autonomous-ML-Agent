@@ -15,40 +15,61 @@ import {
 import { usePipelineExecution, useTaskMonitor } from '@/lib/hooks';
 import { PipelineConfig, PipelineTask } from '@/lib/types';
 import { formatDuration } from '@/lib/api';
+import apiConfig from '@/lib/config';
 
 interface PipelineExecutionProps {
+  selectedFile?: File | null;
   onExecutionComplete?: (taskId: string) => void;
   className?: string;
 }
 
 const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({ 
+  selectedFile,
   onExecutionComplete, 
   className = '' 
 }) => {
-  const [config, setConfig] = useState<PipelineConfig | null>(null);
-  const [datasetPath, setDatasetPath] = useState<string>('');
-  const [targetColumn, setTargetColumn] = useState<string>('');
+  const [config, setConfig] = useState<PipelineConfig>({
+    time_budget: 1800,
+    optimization_metric: 'auto',
+    random_state: 42,
+    output_dir: './results',
+    save_models: true,
+    save_results: true,
+    verbose: false
+  });
   const [isStarted, setIsStarted] = useState(false);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string>('');
   
   const { executing, taskId, error, executePipeline, reset } = usePipelineExecution();
   const { status, loading: monitoringLoading } = useTaskMonitor(taskId);
 
-  // Load configuration from localStorage or use default
+  // Upload file when selectedFile changes
   useEffect(() => {
-    const savedConfig = localStorage.getItem('ml-pipeline-config');
-    const savedDataset = localStorage.getItem('ml-dataset-path');
-    const savedTarget = localStorage.getItem('ml-target-column');
-    
-    if (savedConfig) {
-      setConfig(JSON.parse(savedConfig));
+    if (selectedFile) {
+      uploadFile(selectedFile);
     }
-    if (savedDataset) {
-      setDatasetPath(savedDataset);
+  }, [selectedFile]);
+
+  const uploadFile = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`${apiConfig.api.baseUrl}/analyze`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUploadedFilePath(data.dataset_path || file.name);
+      } else {
+        console.error('File upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
     }
-    if (savedTarget) {
-      setTargetColumn(savedTarget);
-    }
-  }, []);
+  };
 
   useEffect(() => {
     if (taskId && !executing) {
@@ -63,13 +84,13 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
   }, [status?.status, taskId, onExecutionComplete]);
 
   const handleStartExecution = async () => {
-    if (!config || !datasetPath || !targetColumn) {
-      alert('Please configure the pipeline and upload a dataset first.');
+    if (!config || !uploadedFilePath) {
+      alert('Please upload a dataset first.');
       return;
     }
 
     try {
-      await executePipeline(config, datasetPath, targetColumn);
+      await executePipeline(config, uploadedFilePath, ''); // Empty target column - auto-detect
     } catch (err) {
       console.error('Pipeline execution failed:', err);
     }
@@ -95,6 +116,8 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
         return 'text-blue-600 bg-blue-100';
       case 'failed':
         return 'text-red-600 bg-red-100';
+      case 'not_found':
+        return 'text-yellow-600 bg-yellow-100';
       default:
         return 'text-gray-600 bg-gray-100';
     }
@@ -107,6 +130,8 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
       case 'running':
         return ArrowPathIcon;
       case 'failed':
+        return ExclamationTriangleIcon;
+      case 'not_found':
         return ExclamationTriangleIcon;
       default:
         return ClockIcon;
@@ -134,7 +159,8 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
               <h3 className="text-lg font-semibold text-gray-900">
                 {status?.status === 'running' ? 'Training in Progress' : 
                  status?.status === 'completed' ? 'Training Complete' :
-                 status?.status === 'failed' ? 'Training Failed' : 'Initializing...'}
+                 status?.status === 'failed' ? 'Training Failed' :
+                 status?.status === 'not_found' ? 'Task Not Found' : 'Initializing...'}
               </h3>
               <p className="text-sm text-gray-600">
                 Task ID: {taskId}
@@ -153,18 +179,58 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
         <div className="mb-4">
           <div className="w-full bg-gray-200 rounded-full h-3">
             <motion.div
-              className="bg-blue-500 h-3 rounded-full"
+              className="bg-gradient-to-r from-cyan-500 to-purple-500 h-3 rounded-full shadow-lg"
               initial={{ width: 0 }}
               animate={{ width: `${status ? status.progress * 100 : 0}%` }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
             />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>0%</span>
+            <span>{status ? Math.round(status.progress * 100) : 0}%</span>
+            <span>100%</span>
           </div>
         </div>
 
         {/* Status Message */}
-        {status?.message && (
-          <div className="mb-4">
-            <p className="text-sm text-gray-700">{status.message}</p>
+        <div className="mb-4">
+          <div className="flex items-center space-x-2">
+            {status?.status === 'running' && (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full"
+              />
+            )}
+            {status?.status === 'completed' && (
+              <CheckCircleIcon className="w-4 h-4 text-green-500" />
+            )}
+            {status?.status === 'failed' && (
+              <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
+            )}
+            <p className="text-sm font-medium text-gray-700">
+              {status?.message || 'Preparing pipeline...'}
+            </p>
+          </div>
+          
+          {/* Additional status info */}
+          {status?.status === 'running' && (
+            <div className="mt-2 text-xs text-gray-500">
+              {status.progress < 0.3 && 'Analyzing your dataset and creating execution plan...'}
+              {status.progress >= 0.3 && status.progress < 0.7 && 'Training multiple ML models...'}
+              {status.progress >= 0.7 && status.progress < 0.9 && 'Evaluating model performance...'}
+              {status.progress >= 0.9 && 'Finalizing results and generating insights...'}
+            </div>
+          )}
+        </div>
+
+        {/* Special message for not_found status */}
+        {status?.status === 'not_found' && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm text-yellow-700">
+              The task was not found on the server. This usually happens when the server restarts during development. 
+              You can start a new pipeline by uploading a dataset.
+            </p>
           </div>
         )}
 
@@ -220,47 +286,41 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-lg border border-gray-200 p-6"
     >
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Execution Configuration</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Pipeline Configuration</h3>
       
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Dataset Path
-          </label>
-          <input
-            type="text"
-            value={datasetPath}
-            onChange={(e) => setDatasetPath(e.target.value)}
-            placeholder="Path to your dataset file"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Target Column
-          </label>
-          <input
-            type="text"
-            value={targetColumn}
-            onChange={(e) => setTargetColumn(e.target.value)}
-            placeholder="Name of the target column"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {config && (
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+      {/* File Information */}
+      {selectedFile && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center space-x-3">
+            <CheckCircleIcon className="h-6 w-6 text-green-600" />
             <div>
-              <p className="text-sm font-medium text-gray-700">Time Budget</p>
-              <p className="text-sm text-gray-600">{formatDuration(config.time_budget)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700">Optimization Metric</p>
-              <p className="text-sm text-gray-600">{config.optimization_metric}</p>
+              <h4 className="font-medium text-green-900">Dataset Ready</h4>
+              <p className="text-sm text-green-700">{selectedFile.name}</p>
+              <p className="text-xs text-green-600">
+                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Configuration Summary */}
+      <div className="p-4 bg-gray-50 rounded-lg">
+        <h4 className="font-medium text-gray-900 mb-3">Auto Configuration</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-gray-600">Time Budget</p>
+            <p className="font-medium text-gray-900">{formatDuration(config.time_budget)}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Optimization</p>
+            <p className="font-medium text-gray-900">Auto-detect best metric</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Target Column</p>
+            <p className="font-medium text-gray-900">Auto-detect from data</p>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -317,16 +377,16 @@ const PipelineExecutionComponent: React.FC<PipelineExecutionProps> = ({
         >
           <button
             onClick={handleStartExecution}
-            disabled={!config || !datasetPath || !targetColumn}
+            disabled={!config || !uploadedFilePath}
             className="inline-flex items-center space-x-2 px-8 py-4 text-lg font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <PlayIcon className="h-6 w-6" />
             <span>Start Pipeline Execution</span>
           </button>
           
-          {(!config || !datasetPath || !targetColumn) && (
+          {(!config || !uploadedFilePath) && (
             <p className="mt-2 text-sm text-gray-500">
-              Please configure the pipeline and upload a dataset first
+              Please upload a dataset first
             </p>
           )}
         </motion.div>

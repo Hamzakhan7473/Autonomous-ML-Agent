@@ -6,11 +6,11 @@ The Autonomous ML Agent leverages Large Language Models (LLMs) to orchestrate th
 
 ## **Supported LLM Providers**
 
-### **OpenRouter (Recommended)**
-- **Provider**: OpenRouter API
-- **Models**: Access to 100+ models from multiple providers
-- **Benefits**: Unified API, competitive pricing, model comparison
-- **Setup**: Requires `OPENROUTER_API_KEY`
+### **E2B (Recommended)**
+- **Provider**: E2B API
+- **Models**: Access to multiple LLM providers through E2B sandbox
+- **Benefits**: Secure code execution, sandboxed environment, unified API
+- **Setup**: Requires `E2B_API_KEY`
 
 ### **OpenAI**
 - **Provider**: OpenAI API
@@ -240,66 +240,74 @@ def explain_results(self, results: dict, execution_plan: MLPlan) -> str:
     return self.llm_client.generate_response(prompt)
 ```
 
-## **OpenRouter Integration**
+## **E2B Integration**
 
 ### **Setup and Configuration**
 
-1. **Get API Key**: Visit [OpenRouter](https://openrouter.ai/) and create an API key
+1. **Get API Key**: Visit [E2B](https://e2b.dev/) and create an API key
 2. **Configure Environment**: Add to your `.env` file:
    ```bash
-   OPENROUTER_API_KEY=your_openrouter_api_key_here
-   DEFAULT_LLM_PROVIDER=openrouter
+   E2B_API_KEY=your_e2b_api_key_here
+   DEFAULT_LLM_PROVIDER=e2b
    ```
 
-### **OpenRouter Client Implementation**
+### **E2B Client Implementation**
 
 ```python
-class OpenRouterClient(BaseLLMClient):
-    """OpenRouter API client for accessing multiple LLM providers."""
+class E2BClient(BaseLLMClient):
+    """E2B API client for secure code execution and LLM integration."""
     
-    def __init__(self, api_key: str = None, model: str = "openai/gpt-4o-mini"):
-        self.client = openai.OpenAI(
-            api_key=api_key or os.getenv("OPENROUTER_API_KEY"),
-            base_url="https://openrouter.ai/api/v1"
-        )
-        self.model = model
+    def __init__(self, api_key: str = None, template_id: str = "base"):
+        self.api_key = api_key or os.getenv("E2B_API_KEY")
+        self.template_id = template_id
+        self.client = e2b.Client(self.api_key)
     
     def generate_response(self, prompt: str, **kwargs) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=kwargs.get("max_tokens", 2000),
-            temperature=kwargs.get("temperature", 0.1),
-            extra_headers={
-                "HTTP-Referer": kwargs.get("referer", "https://autonomous-ml-agent.local"),
-                "X-Title": kwargs.get("title", "Autonomous ML Agent")
-            }
+        # Create sandbox environment
+        sandbox = self.client.sandbox.create(template=self.template_id)
+        
+        # Execute LLM query in sandbox
+        result = sandbox.run_code(f"""
+        import openai
+        client = openai.OpenAI()
+        
+        response = client.chat.completions.create(
+            model="{kwargs.get('model', 'gpt-4o-mini')}",
+            messages=[{{"role": "user", "content": "{prompt}"}}],
+            max_tokens={kwargs.get("max_tokens", 2000)},
+            temperature={kwargs.get("temperature", 0.1)}
         )
-        return response.choices[0].message.content.strip()
+        print(response.choices[0].message.content)
+        """)
+        
+        # Clean up sandbox
+        sandbox.close()
+        
+        return result.stdout.strip()
 ```
 
 ### **Supported Models**
 
-OpenRouter provides access to models from multiple providers:
+E2B provides access to models from multiple providers through secure sandbox execution:
 
 #### **OpenAI Models**
-- `openai/gpt-4o` - Latest GPT-4 model
-- `openai/gpt-4o-mini` - Cost-effective GPT-4 variant
-- `openai/gpt-4-turbo` - High-performance model
-- `openai/gpt-3.5-turbo` - Fast and economical
+- `gpt-4o` - Latest GPT-4 model
+- `gpt-4o-mini` - Cost-effective GPT-4 variant
+- `gpt-4-turbo` - High-performance model
+- `gpt-3.5-turbo` - Fast and economical
 
 #### **Anthropic Models**
-- `anthropic/claude-3-opus` - Most capable Claude model
-- `anthropic/claude-3-sonnet` - Balanced performance
-- `anthropic/claude-3-haiku` - Fast and efficient
+- `claude-3-opus` - Most capable Claude model
+- `claude-3-sonnet` - Balanced performance
+- `claude-3-haiku` - Fast and efficient
 
 #### **Google Models**
-- `google/gemini-pro` - Google's flagship model
-- `google/gemini-pro-vision` - Multimodal capabilities
+- `gemini-pro` - Google's flagship model
+- `gemini-pro-vision` - Multimodal capabilities
 
 #### **Meta Models**
-- `meta-llama/llama-3-8b` - Open source option
-- `meta-llama/llama-3-70b` - Larger open source model
+- `llama-3-8b` - Open source option
+- `llama-3-70b` - Larger open source model
 
 ### **Model Selection Guidelines**
 
@@ -308,15 +316,15 @@ def select_model_for_task(task_type: str, complexity: str, budget: str) -> str:
     """Select appropriate model based on task requirements."""
     
     if budget == "low":
-        return "openai/gpt-4o-mini"  # Cost-effective
+        return "gpt-4o-mini"  # Cost-effective
     elif complexity == "high":
-        return "openai/gpt-4o"  # Best quality
+        return "gpt-4o"  # Best quality
     elif task_type == "reasoning":
-        return "anthropic/claude-3-sonnet"  # Excellent reasoning
+        return "claude-3-sonnet"  # Excellent reasoning
     elif task_type == "code_generation":
-        return "openai/gpt-4o"  # Best code generation
+        return "gpt-4o"  # Best code generation
     else:
-        return "openai/gpt-4o-mini"  # Default
+        return "gpt-4o-mini"  # Default
 ```
 
 ## **Prompt Engineering**
@@ -560,3 +568,4 @@ def test_end_to_end_llm_pipeline():
 ---
 
 This comprehensive LLM integration enables the Autonomous ML Agent to make intelligent decisions throughout the ML pipeline, from data analysis to model selection and results interpretation.
+

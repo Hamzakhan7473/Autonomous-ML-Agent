@@ -72,6 +72,18 @@ class HyperparameterOptimizer:
                 verbose=1,
                 n_iter=20,  # Number of iterations for random search
             )
+        elif method == "bayesian":
+            # Fallback to random search for now (Bayesian optimization not implemented)
+            logger.warning("Bayesian optimization not implemented, falling back to random search")
+            search = RandomizedSearchCV(
+                self.model,
+                self.param_grid,
+                cv=self.cv,
+                scoring=self.scoring,
+                n_jobs=self.n_jobs,
+                verbose=1,
+                n_iter=20,  # Number of iterations for random search
+            )
         else:
             raise ValueError(f"Unknown optimization method: {method}")
 

@@ -205,12 +205,32 @@ class DataPreprocessor:
         # Fit and transform features
         X_transformed = self.preprocessing_pipeline.fit_transform(X)
 
-        # Handle target encoding
-        if pd.api.types.is_object_dtype(y) or pd.api.types.is_categorical_dtype(y):
-            self.target_encoder = LabelEncoder()
-            y_transformed = self.target_encoder.fit_transform(y)
-        else:
-            y_transformed = y.values
+        # Handle target encoding with better error handling
+        try:
+            if pd.api.types.is_object_dtype(y) or pd.api.types.is_categorical_dtype(y):
+                logger.info("Encoding categorical target with LabelEncoder")
+                self.target_encoder = LabelEncoder()
+                y_transformed = self.target_encoder.fit_transform(y)
+            else:
+                logger.info("Using numerical target as-is")
+                y_transformed = y.values
+                
+            # Ensure y_transformed is a numpy array
+            if not isinstance(y_transformed, np.ndarray):
+                y_transformed = np.array(y_transformed)
+                
+            logger.info(f"Target shape: {y_transformed.shape}, dtype: {y_transformed.dtype}")
+            
+        except Exception as e:
+            logger.error(f"Error in target encoding: {e}")
+            # Fallback: try to convert to numeric
+            try:
+                y_numeric = pd.to_numeric(y, errors='coerce')
+                y_transformed = y_numeric.values
+                logger.info("Fallback: converted target to numeric")
+            except Exception as e2:
+                logger.error(f"Fallback target conversion failed: {e2}")
+                raise ValueError(f"Could not process target column: {e}")
 
         # Store feature names
         self.feature_names = self._get_feature_names()
